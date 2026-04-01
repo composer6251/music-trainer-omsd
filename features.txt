@@ -1,0 +1,28 @@
+
+
+
+The ability to change the current scale.
+The ability to generate xml files in order to aid in sight reading practice.
+The ability to generate music multiple voices with Soprano/Alto/Tenor/Bass formatted note stemming.
+
+I would like to add staff options for Grand Staff, Bass Staff, Alto Staff, and Treble 8va staff(for guitar).
+
+Add the ability to change keys
+1. Key signature should update. 
+
+I would like to add a metronome in the UI. It should consist of the following for adjusting the tempo and contain visual and audio cues, which can be toggled on/off.
+1.  Adjusting the metronome BPM via 3 separate means which are logically grouped together: a slider, a tap/click(for a user "tapping" a tempo), and an input field for manually entering the tempo BPM.
+2. An audible clicking sound that keeps the tempo time. Can be toggled on or off.
+3. An a small, but noticeable, flashing area which also keeps time. Can be toggled on or off.
+
+Add toggle for switching between 3 different learning modes:
+1. Note learning: when the cursor doesn't progress until the current note is played correctly
+2. Sight reading: 
+
+Finale-Sibelius style:
+This is a large overview of what I would like to know if it is possible, without being overly complex.
+Ability to input notes with a mouse and/or keyboard and adjust the note on the staff accordingly.
+
+Could functionality be added to utilize virtual instruments as the playback sounds?
+It could be synced up with VST manager apps such as Kontakt, Spitfire Audio App, along with others.
+Assuming the user has the VSTs and appropriate licenses.

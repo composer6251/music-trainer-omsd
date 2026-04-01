@@ -2,24 +2,20 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { OpenSheetMusicDisplay, Note } from 'opensheetmusicdisplay';
 
 interface SheetMusicProps {
-  url: string;
+  score: string; // Can be a URL or raw MusicXML string
   zoom?: number;
 }
 
-const SheetMusic: React.FC<SheetMusicProps> = ({ url, zoom = 1.0 }) => {
+const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
   const [midiStatus, setMidiStatus] = useState<string>('Initializing MIDI...');
 
-  // Helper to highlight a note
   const highlightNote = (note: Note, color: string) => {
     const osmd = osmdRef.current;
     if (!osmd || !osmd.GraphicSheet) return;
 
-    // Bridge logical note to graphical note
-    // Use any cast to avoid TS issues with internal OSMD methods
     const gNote = (osmd.GraphicSheet as any).GetGraphicalNoteFromLogicalNote(note);
-    
     if (gNote) {
       if (typeof (gNote as any).setColor === 'function') {
         (gNote as any).setColor(color);
@@ -43,11 +39,9 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ url, zoom = 1.0 }) => {
     let matchFound = false;
 
     notesUnderCursor.forEach((note) => {
-      // Use the public method to get pitch
       const osmdPitch = (note.Pitch as any).getHalfTone() + 12;
-
       if (osmdPitch === playedMidiNote) {
-        highlightNote(note, "#2ecc71"); // Green
+        highlightNote(note, "#2ecc71");
         matchFound = true;
       }
     });
@@ -62,11 +56,9 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ url, zoom = 1.0 }) => {
   const handleMidiMessage = useCallback((event: any) => {
     const data = event.data;
     if (!data) return;
-    
     const [status, note, velocity] = data;
     const type = status & 0xf0;
-
-    if (type === 144 && velocity > 0) { // Note On
+    if (type === 144 && velocity > 0) {
       checkNoteMatch(note);
     }
   }, [checkNoteMatch]);
@@ -93,17 +85,13 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ url, zoom = 1.0 }) => {
     } else {
       setMidiStatus('MIDI not supported');
     }
-
-    return () => {
-      // Clean up MIDI listeners if needed
-    };
   }, [handleMidiMessage]);
 
   useEffect(() => {
     const loadScore = async () => {
-      if (osmdRef.current && url) {
+      if (osmdRef.current && score) {
         try {
-          await osmdRef.current.load(url);
+          await osmdRef.current.load(score);
           osmdRef.current.Zoom = zoom;
           osmdRef.current.render();
           osmdRef.current.cursor.show();
@@ -112,9 +100,8 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ url, zoom = 1.0 }) => {
         }
       }
     };
-
     loadScore();
-  }, [url, zoom]);
+  }, [score, zoom]);
 
   return (
     <div>

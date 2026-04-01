@@ -118,11 +118,15 @@
 
 .sheet-music-container {
   background: white;
-  padding: 30px;
+  padding: 40px; /* Increased padding */
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
   margin-bottom: 2rem;
-  min-height: 400px;
+  min-height: 600px; /* Increased minimum height for multi-line */
+  width: 95%;
+  margin-left: auto;
+  margin-right: auto;
+  overflow-y: visible; /* Ensure content can be seen */
 }
 
 .zoom-controls {
@@ -131,6 +135,7 @@
   align-items: center;
   gap: 15px;
   color: #888;
+  margin-bottom: 2rem;
 }
 
 .placeholder-view {

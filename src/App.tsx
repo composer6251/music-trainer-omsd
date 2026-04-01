@@ -3,7 +3,7 @@ import './App.css'
 import SheetMusic from './components/SheetMusic'
 import Metronome from './components/Metronome'
 import { generateMusicXml } from './utils/musicXmlGenerator'
-import type { Scale, StaffType } from './utils/musicXmlGenerator'
+import type { Scale, StaffType, RhythmComplexity } from './utils/musicXmlGenerator'
 
 type Page = 'Music Reading' | 'Learn Theory - Beginner' | 'Learn Theory - Advanced' | 'Composition';
 
@@ -16,11 +16,13 @@ function App() {
   const [scale, setScale] = useState<Scale>('C Major');
   const [staff, setStaff] = useState<StaffType>('Treble');
   const [voices, setVoices] = useState(1);
+  const [measures, setMeasures] = useState(8);
+  const [complexity, setComplexity] = useState<RhythmComplexity>('Basic');
 
   const handleGenerate = useCallback(() => {
-    const newXml = generateMusicXml(12, scale, staff, voices);
+    const newXml = generateMusicXml(measures, scale, staff, voices, complexity);
     setScore(newXml);
-  }, [scale, staff, voices]);
+  }, [measures, scale, staff, voices, complexity]);
 
   // Generate initial score
   useEffect(() => {
@@ -64,6 +66,25 @@ function App() {
           <option value="Alto">Alto Staff</option>
           <option value="Treble8va">Treble 8va (Guitar)</option>
           <option value="Grand">Grand Staff</option>
+        </select>
+      </div>
+
+      <div className="option-group">
+        <label>Length:</label>
+        <select value={measures} onChange={(e) => setMeasures(parseInt(e.target.value))}>
+          <option value={4}>4 Bars</option>
+          <option value={8}>8 Bars</option>
+          <option value={16}>16 Bars</option>
+          <option value={32}>32 Bars</option>
+        </select>
+      </div>
+
+      <div className="option-group">
+        <label>Complexity:</label>
+        <select value={complexity} onChange={(e) => setComplexity(e.target.value as RhythmComplexity)}>
+          <option value="Basic">Basic (Quarter only)</option>
+          <option value="Intermediate">Intermediate (+8th, Half)</option>
+          <option value="Advanced">Advanced (+Whole)</option>
         </select>
       </div>
 

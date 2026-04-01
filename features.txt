@@ -34,6 +34,12 @@ Add toggle for switching between 3 different learning modes:
 1. Note learning: when the cursor doesn't progress until the current note is played correctly
 2. Sight reading: 
 
+4. Functionality to move the current note highlighter according to the tempo.
+
+
+
+
+
 Finale-Sibelius style:
 This is a large overview of what I would like to know if it is possible, without being overly complex.
 Ability to input notes with a mouse and/or keyboard and adjust the note on the staff accordingly.

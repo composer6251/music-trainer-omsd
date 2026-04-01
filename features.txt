@@ -1,8 +1,23 @@
 
 
+Let me give a little context before adding anything else. I think will aid in the UI design layout.
 
-The ability to change the current scale.
-The ability to generate xml files in order to aid in sight reading practice.
+There will be a header for navigation. This will consist of: 
+1. Music Reading (which is the current page), 2. Learn Theory - Beginner, 3. Learn Theory - Advanced, 4. Composition.
+
+Below the header will be the options for changing:
+1. Scale (random not generation will be based on this value)
+2. Staff (options for Grand Staff, Bass Staff, Alto Staff, and Treble 8va staff(for guitar)).
+3. Number of voices (random note generation will use this value to at some point)
+4. An adjustable metronome, with both audio and visual cues.
+
+Then the staff will be underneath and spaced so that it is easy to read. 
+
+The ability to change: 
+1. To change the current scale.
+    a. Which changes the key signature.
+2. The current staff with options for Grand Staff, Bass Staff, Alto Staff, and Treble 8va staff(for guitar).
+
 The ability to generate music multiple voices with Soprano/Alto/Tenor/Bass formatted note stemming.
 
 I would like to add staff options for Grand Staff, Bass Staff, Alto Staff, and Treble 8va staff(for guitar).

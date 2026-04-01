@@ -1,59 +1,139 @@
 #root {
-  max-width: 1280px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0;
   text-align: center;
 }
 
-.App-header {
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #444;
+.App {
+  min-height: 100vh;
+  background-color: #121212;
+  color: #e0e0e0;
 }
 
-.controls {
+.App-header {
+  padding: 2rem 0;
+  background-color: #1f1f1f;
+  border-bottom: 2px solid #333;
+}
+
+.main-nav {
   display: flex;
-  gap: 20px;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 1.5rem;
+}
+
+.main-nav button {
+  background: none;
+  border: 1px solid #444;
+  color: #bbb;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.main-nav button:hover {
+  border-color: #646cff;
+  color: white;
+}
+
+.main-nav button.active {
+  background-color: #646cff;
+  color: white;
+  border-color: #646cff;
+}
+
+.trainer-options {
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  margin-top: 1rem;
+  gap: 20px;
+  padding: 1.5rem;
+  background-color: #262626;
+  border-bottom: 1px solid #333;
+  margin-bottom: 2rem;
+}
+
+.option-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.option-group select, .option-group input {
+  padding: 6px;
+  border-radius: 4px;
+  background: #333;
+  color: white;
+  border: 1px solid #444;
+}
+
+.generate-btn {
+  background-color: #4CAF50 !important;
+  color: white !important;
+  font-weight: bold;
+}
+
+/* Metronome Styles */
+.metronome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+  border-left: 1px solid #444;
+  border-right: 1px solid #444;
+}
+
+.metronome-visual {
+  display: flex;
+  gap: 5px;
+}
+
+.beat-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #444;
+  transition: background-color 0.1s;
+}
+
+.beat-indicator.active {
+  background-color: #646cff;
+  box-shadow: 0 0 10px #646cff;
+}
+
+.metronome-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Main Display */
+.reading-trainer {
+  padding: 0 2rem;
 }
 
 .sheet-music-container {
   background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  min-height: 400px;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   margin-bottom: 2rem;
+  min-height: 400px;
 }
 
-.theory-section {
-  text-align: left;
-  background: #2a2a2a;
-  padding: 20px;
-  border-radius: 8px;
+.zoom-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  color: #888;
 }
 
-.theory-section h2 {
-  margin-top: 0;
-}
-
-button {
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-  border: 1px solid transparent;
-  border-radius: 8px;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.placeholder-view {
+  padding: 100px;
+  color: #888;
 }

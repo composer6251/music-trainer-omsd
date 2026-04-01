@@ -1,49 +1,120 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './App.css'
 import SheetMusic from './components/SheetMusic'
-import { generateRandomNotes } from './utils/musicXmlGenerator'
+import Metronome from './components/Metronome'
+import { generateMusicXml } from './utils/musicXmlGenerator'
+import type { Scale, StaffType } from './utils/musicXmlGenerator'
+
+type Page = 'Music Reading' | 'Learn Theory - Beginner' | 'Learn Theory - Advanced' | 'Composition';
 
 function App() {
-  const [zoom, setZoom] = useState(1.0)
-  const [score, setScore] = useState<string>('/sample.musicxml')
+  const [currentPage, setCurrentPage] = useState<Page>('Music Reading');
+  const [zoom, setZoom] = useState(1.0);
+  const [score, setScore] = useState<string>('');
+  
+  // Trainer Settings
+  const [scale, setScale] = useState<Scale>('C Major');
+  const [staff, setStaff] = useState<StaffType>('Treble');
+  const [voices, setVoices] = useState(1);
 
-  const handleGenerateRandom = () => {
-    const newXml = generateRandomNotes(12);
+  const handleGenerate = useCallback(() => {
+    const newXml = generateMusicXml(12, scale, staff, voices);
     setScore(newXml);
-  };
+  }, [scale, staff, voices]);
+
+  // Generate initial score
+  useEffect(() => {
+    handleGenerate();
+  }, [handleGenerate]);
+
+  const renderHeader = () => (
+    <nav className="main-nav">
+      {(['Music Reading', 'Learn Theory - Beginner', 'Learn Theory - Advanced', 'Composition'] as Page[]).map((page) => (
+        <button 
+          key={page} 
+          className={currentPage === page ? 'active' : ''} 
+          onClick={() => setCurrentPage(page)}
+        >
+          {page}
+        </button>
+      ))}
+    </nav>
+  );
+
+  const renderTrainerControls = () => (
+    <div className="trainer-options">
+      <div className="option-group">
+        <label>Scale:</label>
+        <select value={scale} onChange={(e) => setScale(e.target.value as Scale)}>
+          <option>C Major</option>
+          <option>G Major</option>
+          <option>F Major</option>
+          <option>D Major</option>
+          <option>Bb Major</option>
+          <option>A Minor</option>
+          <option>E Minor</option>
+        </select>
+      </div>
+
+      <div className="option-group">
+        <label>Staff:</label>
+        <select value={staff} onChange={(e) => setStaff(e.target.value as StaffType)}>
+          <option value="Treble">Treble Staff</option>
+          <option value="Bass">Bass Staff</option>
+          <option value="Alto">Alto Staff</option>
+          <option value="Treble8va">Treble 8va (Guitar)</option>
+          <option value="Grand">Grand Staff</option>
+        </select>
+      </div>
+
+      <div className="option-group">
+        <label>Voices:</label>
+        <input 
+          type="number" 
+          min="1" 
+          max="4" 
+          value={voices} 
+          onChange={(e) => setVoices(parseInt(e.target.value))} 
+        />
+      </div>
+
+      <Metronome />
+
+      <button className="generate-btn" onClick={handleGenerate}>
+        New Exercise
+      </button>
+    </div>
+  );
 
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Music Trainer Prototype</h1>
-        <div className="controls">
-          <label>
-            Zoom: 
-            <input 
-              type="range" 
-              min="0.5" 
-              max="2.0" 
-              step="0.1" 
-              value={zoom} 
-              onChange={(e) => setZoom(parseFloat(e.target.value))} 
-            />
-            {zoom.toFixed(1)}
-          </label>
-          <button onClick={() => setScore('/sample.musicxml')}>Load Scale</button>
-          <button onClick={handleGenerateRandom} style={{ backgroundColor: '#4CAF50', color: 'white' }}>
-            Generate Random Exercise
-          </button>
-        </div>
+        <h1>Music Master Trainer</h1>
+        {renderHeader()}
       </header>
+
       <main>
-        <div className="sheet-music-container">
-          <SheetMusic score={score} zoom={zoom} />
-        </div>
+        {currentPage === 'Music Reading' ? (
+          <div className="reading-trainer">
+            {renderTrainerControls()}
+            <div className="sheet-music-container">
+              <SheetMusic score={score} zoom={zoom} />
+            </div>
+            <div className="zoom-controls">
+              <label>Zoom:</label>
+              <input 
+                type="range" min="0.5" max="2.0" step="0.1" 
+                value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} 
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="placeholder-view">
+            <h2>{currentPage}</h2>
+            <p>Content for {currentPage} is under development.</p>
+          </div>
+        )}
       </main>
-      <section className="theory-section">
-        <h2>Music Theory: Random Generation</h2>
-        <p>Dynamic generation allows for endless sight-reading practice. This exercise generates random notes from the C Major scale across two octaves.</p>
-      </section>
     </div>
   )
 }

@@ -1,14 +1,16 @@
 export interface TheoryStep {
   id: string;
   title: string;
-  instruction: string; // The "Socratic" prompt
+  instruction: string;
   successMessage: string;
-  musicXml?: string; // Optional: Some steps might just be text/images
+  musicXml?: string;
+  bpm?: number; // Optional: If the step requires a metronome
   validation: {
-    type: 'MATCH_PITCH' | 'MATCH_SEQUENCE' | 'MATCH_INTERVAL' | 'FIND_TONIC';
-    expectedPitches?: number[]; // MIDI note numbers
-    expectedInterval?: number; // Semitones
-    tolerance?: number;
+    type: 'MATCH_PITCH' | 'MATCH_SEQUENCE' | 'MATCH_INTERVAL' | 'FIND_TONIC' | 'MATCH_RHYTHM';
+    expectedPitches?: number[];
+    expectedInterval?: number;
+    expectedRhythm?: { beat: number; pitch: number }[]; // For rhythm matching
+    tolerance?: number; // Timing tolerance in ms
   };
 }
 

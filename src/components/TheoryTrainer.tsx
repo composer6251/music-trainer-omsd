@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { TheoryLesson } from '../types/theory';
 import SheetMusic from './SheetMusic';
 import MidiKeyboard from './MidiKeyboard';
+import * as Tone from 'tone';
 
 interface TheoryTrainerProps {
   lesson: TheoryLesson;
@@ -13,14 +14,41 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
   const [isStepSolved, setIsStepSolved] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [activeNotes, setActiveNotes] = useState<number[]>([]);
+  const [isMetronomeActive, setIsMetronomeActive] = useState(false);
 
   const currentStep = lesson.steps[currentStepIndex];
+  const rhythmicInputs = useRef<{ beat: number; pitch: number; time: number }[]>([]);
+
+  // Cleanup metronome on unmount
+  useEffect(() => {
+    return () => {
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+    };
+  }, []);
+
+  const startMetronome = async () => {
+    await Tone.start();
+    Tone.Transport.bpm.value = currentStep.bpm || 100;
+    
+    // Simple click sound
+    const osc = new Tone.Oscillator("C6", "sine").toDestination();
+    
+    Tone.Transport.scheduleRepeat((time) => {
+      osc.start(time).stop(time + 0.1);
+    }, "4n");
+
+    Tone.Transport.start();
+    setIsMetronomeActive(true);
+    rhythmicInputs.current = [];
+  };
 
   const handleNotePlayed = useCallback((note: number) => {
     setActiveNotes(prev => [...new Set([...prev, note])]);
     if (isStepSolved) return;
 
     const validation = currentStep.validation;
+
     if (validation.type === 'MATCH_PITCH') {
       if (validation.expectedPitches?.includes(note)) {
         setIsStepSolved(true);
@@ -28,8 +56,28 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
       } else {
         setFeedback('Try again!');
       }
+    } else if (validation.type === 'MATCH_RHYTHM' && isMetronomeActive) {
+      const currentBeat = Tone.Transport.seconds * (Tone.Transport.bpm.value / 60);
+      const relativeBeat = currentBeat % 4; // Assuming 4/4
+      
+      rhythmicInputs.current.push({ beat: relativeBeat, pitch: note, time: Date.now() });
+      
+      // Simple validation for the demo: Check if all expected notes were played
+      const allFound = validation.expectedRhythm?.every(expected => {
+        return rhythmicInputs.current.some(input => {
+          const beatDiff = Math.abs(input.beat - expected.beat);
+          return input.pitch === expected.pitch && beatDiff < 0.2; // 0.2 beats tolerance
+        });
+      });
+
+      if (allFound) {
+        setIsStepSolved(true);
+        setFeedback(currentStep.successMessage);
+        Tone.Transport.stop();
+        setIsMetronomeActive(false);
+      }
     }
-  }, [currentStep, isStepSolved]);
+  }, [currentStep, isStepSolved, isMetronomeActive]);
 
   const handleNoteReleased = useCallback((note: number) => {
     setActiveNotes(prev => prev.filter(n => n !== note));
@@ -67,6 +115,14 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
           <h4>{currentStep.title}</h4>
           <p className="instruction-text">{currentStep.instruction}</p>
           
+          {currentStep.validation.type === 'MATCH_RHYTHM' && !isMetronomeActive && !isStepSolved && (
+            <div className="metronome-prompt" style={{ marginBottom: '20px' }}>
+              <button onClick={startMetronome} className="primary" style={{ width: '100%' }}>
+                Start Heartbeat (Metronome)
+              </button>
+            </div>
+          )}
+
           {feedback && (
             <div className={`feedback-message ${isStepSolved ? 'success' : 'error'}`}>
               {feedback}

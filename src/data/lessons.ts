@@ -207,5 +207,42 @@ export const BEGINNER_LESSONS: TheoryLesson[] = [
         }
       }
     ]
+  },
+  {
+    id: 'module-2',
+    moduleTitle: 'Rhythm Basics (Internalizing the Beat)',
+    steps: [
+      {
+        id: 'rhythm-step-1',
+        title: 'The Heartbeat of Music',
+        instruction: 'Before we play notes, we must feel the pulse. The metronome is our musical heartbeat. Can you play Middle C exactly on Beats 1 and 3?',
+        successMessage: 'Perfect! You have a steady internal clock.',
+        musicXml: middleCXml,
+        bpm: 80,
+        validation: {
+          type: 'MATCH_RHYTHM',
+          expectedRhythm: [
+            { beat: 0, pitch: 60 },
+            { beat: 2, pitch: 60 }
+          ],
+          tolerance: 150
+        }
+      },
+      {
+        id: 'rhythm-step-2',
+        title: 'The Half Note (Holding On)',
+        instruction: 'A "Half Note" lasts for two beats. Try to play Middle C on Beat 1 and hold it until the start of Beat 3.',
+        successMessage: 'Excellent control! You\'re not just playing notes; you\'re sculpting silence.',
+        musicXml: middleCXml,
+        bpm: 80,
+        validation: {
+          type: 'MATCH_RHYTHM',
+          expectedRhythm: [
+            { beat: 0, pitch: 60 }
+          ],
+          tolerance: 150
+        }
+      }
+    ]
   }
 ];

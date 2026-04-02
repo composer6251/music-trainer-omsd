@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import './App.css'
 import SheetMusic from './components/SheetMusic'
 import Metronome from './components/Metronome'
+import TheoryTrainer from './components/TheoryTrainer'
 import { generateMusicXml } from './utils/musicXmlGenerator'
+import { BEGINNER_LESSONS } from './data/lessons'
 import type { Scale, StaffType, RhythmComplexity } from './utils/musicXmlGenerator'
 
 type Page = 'Music Reading' | 'Learn Theory - Beginner' | 'Learn Theory - Advanced' | 'Composition';
@@ -123,7 +125,7 @@ function App() {
       </header>
 
       <main>
-        {currentPage === 'Music Reading' ? (
+        {currentPage === 'Music Reading' && (
           <div className="reading-trainer">
             {renderTrainerControls()}
             <div className="sheet-music-container">
@@ -143,7 +145,18 @@ function App() {
               />
             </div>
           </div>
-        ) : (
+        )}
+
+        {currentPage === 'Learn Theory - Beginner' && (
+          <div className="theory-view">
+            <TheoryTrainer 
+              lesson={BEGINNER_LESSONS[0]} 
+              onComplete={() => setCurrentPage('Music Reading')} 
+            />
+          </div>
+        )}
+
+        {(currentPage === 'Learn Theory - Advanced' || currentPage === 'Composition') && (
           <div className="placeholder-view">
             <h2>{currentPage}</h2>
             <p>Content for {currentPage} is under development.</p>

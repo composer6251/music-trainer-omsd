@@ -9,9 +9,17 @@ interface SheetMusicProps {
   playMode: PlayMode;
   bpm: number;
   isMoving: boolean;
+  onNotePlayed?: (note: number) => void;
 }
 
-const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0, playMode, bpm, isMoving }) => {
+const SheetMusic: React.FC<SheetMusicProps> = ({ 
+  score, 
+  zoom = 1.0, 
+  playMode, 
+  bpm, 
+  isMoving,
+  onNotePlayed 
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
   const [midiStatus, setMidiStatus] = useState<string>('Initializing MIDI...');
@@ -37,6 +45,11 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0, playMode, bp
   };
 
   const checkNoteMatch = useCallback((playedMidiNote: number) => {
+    // Notify parent of the played note
+    if (onNotePlayed) {
+      onNotePlayed(playedMidiNote);
+    }
+
     const osmd = osmdRef.current;
     if (!osmd || !osmd.cursor) return;
 
@@ -60,7 +73,7 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0, playMode, bp
         osmd.cursor.next();
       }, 50);
     }
-  }, [playMode]);
+  }, [playMode, onNotePlayed]);
 
   const handleMidiMessage = useCallback((event: any) => {
     const data = event.data;

@@ -90,6 +90,7 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
         <div className="sheet-music-container">
           {currentStep.musicXml && (
             <SheetMusic 
+              key={currentStep.id}
               title={currentStep.title}
               score={currentStep.musicXml} 
               zoom={1.5} 

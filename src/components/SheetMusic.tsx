@@ -28,6 +28,15 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
   const [midiStatus, setMidiStatus] = useState<string>('Initializing MIDI...');
 
+  // Use refs to store latest callbacks to avoid re-binding MIDI listener
+  const onNotePlayedRef = useRef(onNotePlayed);
+  const onNoteReleasedRef = useRef(onNoteReleased);
+
+  useEffect(() => {
+    onNotePlayedRef.current = onNotePlayed;
+    onNoteReleasedRef.current = onNoteReleased;
+  }, [onNotePlayed, onNoteReleased]);
+
   const highlightNote = (note: Note, color: string) => {
     const osmd = osmdRef.current;
     if (!osmd || !osmd.GraphicSheet) return;
@@ -49,9 +58,9 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
   };
 
   const checkNoteMatch = useCallback((playedMidiNote: number) => {
-    // Notify parent of the played note
-    if (onNotePlayed) {
-      onNotePlayed(playedMidiNote);
+    // Notify parent of the played note using ref
+    if (onNotePlayedRef.current) {
+      onNotePlayedRef.current(playedMidiNote);
     }
 
     const osmd = osmdRef.current;
@@ -77,7 +86,7 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
         osmd.cursor.next();
       }, 50);
     }
-  }, [playMode, onNotePlayed]);
+  }, [playMode]);
 
   const handleMidiMessage = useCallback((event: any) => {
     const data = event.data;
@@ -91,11 +100,11 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
     } 
     // Note Off (128 or 144 with velocity 0)
     else if (type === 128 || (type === 144 && velocity === 0)) {
-      if (onNoteReleased) {
-        onNoteReleased(note);
+      if (onNoteReleasedRef.current) {
+        onNoteReleasedRef.current(note);
       }
     }
-  }, [checkNoteMatch, onNoteReleased]);
+  }, [checkNoteMatch]);
 
   // Handle Cursor Movement in Continuous Mode
   useEffect(() => {

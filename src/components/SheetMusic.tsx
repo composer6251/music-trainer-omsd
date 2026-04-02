@@ -1,12 +1,17 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { OpenSheetMusicDisplay, Note } from 'opensheetmusicdisplay';
+import * as Tone from 'tone';
+import type { PlayMode } from '../App';
 
 interface SheetMusicProps {
-  score: string; // Can be a URL or raw MusicXML string
+  score: string;
   zoom?: number;
+  playMode: PlayMode;
+  bpm: number;
+  isMoving: boolean;
 }
 
-const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0 }) => {
+const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0, playMode, bpm, isMoving }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
   const [midiStatus, setMidiStatus] = useState<string>('Initializing MIDI...');
@@ -40,18 +45,22 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0 }) => {
 
     notesUnderCursor.forEach((note) => {
       const osmdPitch = (note.Pitch as any).getHalfTone() + 12;
+      
       if (osmdPitch === playedMidiNote) {
-        highlightNote(note, "#2ecc71");
+        highlightNote(note, "#2ecc71"); // Correct -> Green
         matchFound = true;
+      } else {
+        // Only turn red if it's the wrong pitch for the current note position
+        highlightNote(note, "#e74c3c"); // Incorrect -> Red
       }
     });
 
-    if (matchFound) {
+    if (matchFound && playMode === 'Wait') {
       setTimeout(() => {
         osmd.cursor.next();
       }, 50);
     }
-  }, []);
+  }, [playMode]);
 
   const handleMidiMessage = useCallback((event: any) => {
     const data = event.data;
@@ -63,6 +72,34 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0 }) => {
     }
   }, [checkNoteMatch]);
 
+  // Handle Cursor Movement in Continuous Mode
+  useEffect(() => {
+    let loop: Tone.Loop | null = null;
+
+    if (playMode === 'Continuous' && isMoving && osmdRef.current) {
+      osmdRef.current.cursor.show();
+      
+      // Advance cursor every quarter note (standard 4/4)
+      // Note: For complex rhythms, we'd need to sync with the actual MusicXML timestamps
+      loop = new Tone.Loop((time) => {
+        Tone.Draw.schedule(() => {
+          if (osmdRef.current && osmdRef.current.cursor) {
+            osmdRef.current.cursor.next();
+          }
+        }, time);
+      }, "4n"); // "4n" is a quarter note
+
+      loop.start(0);
+    }
+
+    return () => {
+      if (loop) {
+        loop.dispose();
+      }
+    };
+  }, [playMode, isMoving, bpm]);
+
+  // Initialization & Score Loading
   useEffect(() => {
     if (containerRef.current && !osmdRef.current) {
       osmdRef.current = new OpenSheetMusicDisplay(containerRef.current, {
@@ -82,8 +119,6 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0 }) => {
         },
         () => setMidiStatus('MIDI Access Failed')
       );
-    } else {
-      setMidiStatus('MIDI not supported');
     }
   }, [handleMidiMessage]);
 
@@ -95,6 +130,7 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0 }) => {
           osmdRef.current.Zoom = zoom;
           osmdRef.current.render();
           osmdRef.current.cursor.show();
+          osmdRef.current.cursor.reset();
         } catch (error) {
           console.error("Error loading MusicXML:", error);
         }
@@ -106,7 +142,7 @@ const SheetMusic: React.FC<SheetMusicProps> = ({ score, zoom = 1.0 }) => {
   return (
     <div>
       <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: '5px' }}>
-        Status: {midiStatus}
+        Status: {midiStatus} | Mode: {playMode}
       </div>
       <div ref={containerRef} style={{ width: '100%', overflow: 'auto', background: 'white' }} />
     </div>

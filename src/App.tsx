@@ -6,6 +6,7 @@ import { generateMusicXml } from './utils/musicXmlGenerator'
 import type { Scale, StaffType, RhythmComplexity } from './utils/musicXmlGenerator'
 
 type Page = 'Music Reading' | 'Learn Theory - Beginner' | 'Learn Theory - Advanced' | 'Composition';
+export type PlayMode = 'Wait' | 'Continuous';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('Music Reading');
@@ -18,13 +19,18 @@ function App() {
   const [voices, setVoices] = useState(1);
   const [measures, setMeasures] = useState(8);
   const [complexity, setComplexity] = useState<RhythmComplexity>('Basic');
+  
+  // New Play Mode State
+  const [playMode, setPlayMode] = useState<PlayMode>('Wait');
+  const [bpm, setBpm] = useState(100);
+  const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
 
   const handleGenerate = useCallback(() => {
     const newXml = generateMusicXml(measures, scale, staff, voices, complexity);
     setScore(newXml);
+    setIsMetronomePlaying(false); // Stop metronome on new exercise
   }, [measures, scale, staff, voices, complexity]);
 
-  // Generate initial score
   useEffect(() => {
     handleGenerate();
   }, [handleGenerate]);
@@ -80,6 +86,14 @@ function App() {
       </div>
 
       <div className="option-group">
+        <label>Mode:</label>
+        <select value={playMode} onChange={(e) => setPlayMode(e.target.value as PlayMode)}>
+          <option value="Wait">Wait for Note</option>
+          <option value="Continuous">Continuous (BPM Sync)</option>
+        </select>
+      </div>
+
+      <div className="option-group">
         <label>Complexity:</label>
         <select value={complexity} onChange={(e) => setComplexity(e.target.value as RhythmComplexity)}>
           <option value="Basic">Basic (Quarter only)</option>
@@ -88,18 +102,12 @@ function App() {
         </select>
       </div>
 
-      <div className="option-group">
-        <label>Voices:</label>
-        <input 
-          type="number" 
-          min="1" 
-          max="4" 
-          value={voices} 
-          onChange={(e) => setVoices(parseInt(e.target.value))} 
-        />
-      </div>
-
-      <Metronome />
+      <Metronome 
+        bpm={bpm} 
+        onBpmChange={setBpm} 
+        isPlaying={isMetronomePlaying} 
+        onToggle={setIsMetronomePlaying} 
+      />
 
       <button className="generate-btn" onClick={handleGenerate}>
         New Exercise
@@ -119,7 +127,13 @@ function App() {
           <div className="reading-trainer">
             {renderTrainerControls()}
             <div className="sheet-music-container">
-              <SheetMusic score={score} zoom={zoom} />
+              <SheetMusic 
+                score={score} 
+                zoom={zoom} 
+                playMode={playMode}
+                bpm={bpm}
+                isMoving={isMetronomePlaying}
+              />
             </div>
             <div className="zoom-controls">
               <label>Zoom:</label>

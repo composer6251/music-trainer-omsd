@@ -1,17 +1,40 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as Tone from 'tone';
 
 interface MetronomeProps {
-  initialBpm?: number;
+  bpm: number;
+  onBpmChange: (bpm: number) => void;
+  isPlaying: boolean;
+  onToggle: (isPlaying: boolean) => void;
 }
 
-const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 100 }) => {
-  const [bpm, setBpm] = useState(initialBpm);
-  const [isPlaying, setIsPlaying] = useState(false);
+const Metronome: React.FC<MetronomeProps> = ({ bpm, onBpmChange, isPlaying, onToggle }) => {
   const [activeBeat, setActiveBeat] = useState(0);
 
-  // Use useMemo to ensure synth is created only once
-  const synth = useMemo(() => new Tone.MembraneSynth().toDestination(), []);
+  // Refined synth for a "woodblock" or "click" sound
+  const clickSynth = useMemo(() => new Tone.Synth({
+    oscillator: {
+      type: "triangle"
+    },
+    envelope: {
+      attack: 0.001,
+      decay: 0.1,
+      sustain: 0,
+      release: 0.1
+    }
+  }).toDestination(), []);
+
+  // Add a bit of "noise" for a more organic click
+  const noiseSynth = useMemo(() => new Tone.NoiseSynth({
+    noise: {
+      type: "white"
+    },
+    envelope: {
+      attack: 0.001,
+      decay: 0.01,
+      sustain: 0
+    }
+  }).toDestination(), []);
 
   useEffect(() => {
     Tone.Transport.bpm.value = bpm;
@@ -19,12 +42,14 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 100 }) => {
 
   useEffect(() => {
     const loop = new Tone.Loop((time) => {
-      // Use Tone.Draw to sync state updates with audio timing
       Tone.Draw.schedule(() => {
         setActiveBeat((prev) => (prev + 1) % 4);
       }, time);
 
-      synth.triggerAttackRelease(activeBeat === 0 ? "C3" : "C2", "8n", time);
+      // Play both a tone and a noise "click" for a more realistic feel
+      const freq = activeBeat === 0 ? "C6" : "C5";
+      clickSynth.triggerAttackRelease(freq, "32n", time);
+      noiseSynth.triggerAttack(time);
     }, "4n");
 
     if (isPlaying) {
@@ -40,7 +65,7 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 100 }) => {
     return () => {
       loop.dispose();
     };
-  }, [isPlaying, synth, activeBeat]);
+  }, [isPlaying, clickSynth, noiseSynth, activeBeat]);
 
   return (
     <div className="metronome">
@@ -58,10 +83,10 @@ const Metronome: React.FC<MetronomeProps> = ({ initialBpm = 100 }) => {
           min="40" 
           max="240" 
           value={bpm} 
-          onChange={(e) => setBpm(parseInt(e.target.value))} 
+          onChange={(e) => onBpmChange(parseInt(e.target.value))} 
         />
         <span>{bpm} BPM</span>
-        <button onClick={() => setIsPlaying(!isPlaying)}>
+        <button onClick={() => onToggle(!isPlaying)}>
           {isPlaying ? 'Stop' : 'Start'}
         </button>
       </div>

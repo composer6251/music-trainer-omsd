@@ -10,6 +10,8 @@ interface SheetMusicProps {
   bpm: number;
   isMoving: boolean;
   onNotePlayed?: (note: number) => void;
+  onNoteReleased?: (note: number) => void;
+  title?: string;
 }
 
 const SheetMusic: React.FC<SheetMusicProps> = ({ 
@@ -18,7 +20,9 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
   playMode, 
   bpm, 
   isMoving,
-  onNotePlayed 
+  onNotePlayed,
+  onNoteReleased,
+  title
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
@@ -80,10 +84,18 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
     if (!data) return;
     const [status, note, velocity] = data;
     const type = status & 0xf0;
+
+    // Note On
     if (type === 144 && velocity > 0) {
       checkNoteMatch(note);
+    } 
+    // Note Off (128 or 144 with velocity 0)
+    else if (type === 128 || (type === 144 && velocity === 0)) {
+      if (onNoteReleased) {
+        onNoteReleased(note);
+      }
     }
-  }, [checkNoteMatch]);
+  }, [checkNoteMatch, onNoteReleased]);
 
   // Handle Cursor Movement in Continuous Mode
   useEffect(() => {
@@ -117,7 +129,7 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
     if (containerRef.current && !osmdRef.current) {
       osmdRef.current = new OpenSheetMusicDisplay(containerRef.current, {
         autoResize: true,
-        drawTitle: true,
+        drawTitle: false,
         followCursor: true,
       });
     }
@@ -154,8 +166,11 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
 
   return (
     <div>
-      <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: '5px' }}>
-        Status: {midiStatus} | Mode: {playMode}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+        {title && <h3 style={{ margin: 0, fontSize: '1rem', color: '#333' }}>{title}</h3>}
+        <div style={{ fontSize: '0.8rem', color: '#888' }}>
+          Status: {midiStatus} | Mode: {playMode}
+        </div>
       </div>
       <div ref={containerRef} style={{ width: '100%', overflow: 'auto', background: 'white' }} />
     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import type { TheoryLesson } from '../types/theory';
 import SheetMusic from './SheetMusic';
+import MidiKeyboard from './MidiKeyboard';
 
 interface TheoryTrainerProps {
   lesson: TheoryLesson;
@@ -11,10 +12,12 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isStepSolved, setIsStepSolved] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [activeNotes, setActiveNotes] = useState<number[]>([]);
 
   const currentStep = lesson.steps[currentStepIndex];
 
   const handleNotePlayed = useCallback((note: number) => {
+    setActiveNotes(prev => [...new Set([...prev, note])]);
     if (isStepSolved) return;
 
     const validation = currentStep.validation;
@@ -27,6 +30,10 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
       }
     }
   }, [currentStep, isStepSolved]);
+
+  const handleNoteReleased = useCallback((note: number) => {
+    setActiveNotes(prev => prev.filter(n => n !== note));
+  }, []);
 
   const goToNextStep = () => {
     if (currentStepIndex < lesson.steps.length - 1) {
@@ -83,16 +90,26 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
         <div className="sheet-music-container">
           {currentStep.musicXml && (
             <SheetMusic 
+              title={currentStep.title}
               score={currentStep.musicXml} 
               zoom={1.5} 
               playMode="Wait" 
               bpm={100} 
               isMoving={false}
               onNotePlayed={handleNotePlayed}
+              onNoteReleased={handleNoteReleased}
             />
           )}
+          <div className="keyboard-section">
+            <MidiKeyboard 
+              activeNotes={activeNotes} 
+              startNote={60} 
+              endNote={72} 
+            />
+          </div>
         </div>
       </div>
+
 
       <style>{`
         .theory-trainer {
@@ -100,51 +117,117 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
           flex-direction: column;
           gap: 20px;
           text-align: left;
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 20px;
         }
         .lesson-header {
-          border-bottom: 2px solid #eee;
-          padding-bottom: 10px;
+          border-bottom: 3px solid #3498db;
+          padding-bottom: 15px;
+          margin-bottom: 10px;
+        }
+        .lesson-header h3 {
+          margin: 0;
+          color: #2c3e50;
+          font-size: 1.8rem;
+        }
+        .progress-bar {
+          color: #7f8c8d;
+          font-weight: bold;
+          margin-top: 5px;
         }
         .lesson-body {
           display: grid;
-          grid-template-columns: 1fr 2fr;
-          gap: 30px;
+          grid-template-columns: 350px 1fr;
+          gap: 40px;
+          align-items: start;
         }
         .instruction-card {
-          background: #f9f9f9;
-          padding: 20px;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          background: white;
+          padding: 30px;
+          border-radius: 12px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+          border: 1px solid #e0e0e0;
+        }
+        .instruction-card h4 {
+          margin-top: 0;
+          color: #3498db;
+          font-size: 1.4rem;
+          border-bottom: 1px solid #eee;
+          padding-bottom: 10px;
         }
         .instruction-text {
-          font-size: 1.1rem;
-          line-height: 1.6;
-          margin-bottom: 20px;
+          font-size: 1.25rem;
+          line-height: 1.7;
+          margin: 20px 0;
+          color: #34495e;
+          font-weight: 500;
         }
         .feedback-message {
-          padding: 10px;
-          border-radius: 4px;
-          margin-bottom: 20px;
+          padding: 15px;
+          border-radius: 8px;
+          margin-bottom: 25px;
           font-weight: bold;
+          font-size: 1.1rem;
+          text-align: center;
+          border: 2px solid transparent;
         }
         .feedback-message.success {
           background: #e8f5e9;
           color: #2e7d32;
+          border-color: #2e7d32;
         }
         .feedback-message.error {
           background: #ffebee;
           color: #c62828;
+          border-color: #c62828;
         }
         .step-navigation {
           display: flex;
-          gap: 10px;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .step-navigation button {
+          padding: 12px 20px;
+          font-size: 1.1rem;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border-radius: 8px;
+        }
+        .step-navigation button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
         button.primary {
           background-color: #2ecc71;
           color: white;
-          border-color: #27ae60;
+          border: none;
+          box-shadow: 0 4px 0 #27ae60;
         }
-        @media (max-width: 900px) {
+        button.primary:not(:disabled):hover {
+          background-color: #27ae60;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 0 #219150;
+        }
+        button.primary:active {
+          transform: translateY(2px);
+          box-shadow: 0 0 0 #219150;
+        }
+        .sheet-music-container {
+          background: white;
+          padding: 20px;
+          border-radius: 12px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+          border: 1px solid #eee;
+          min-height: 300px;
+        }
+        .keyboard-section {
+          margin-top: 20px;
+          border-top: 1px solid #eee;
+          padding-top: 20px;
+        }
+        @media (max-width: 1000px) {
           .lesson-body {
             grid-template-columns: 1fr;
           }

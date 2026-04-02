@@ -3,6 +3,7 @@ import './App.css'
 import SheetMusic from './components/SheetMusic'
 import Metronome from './components/Metronome'
 import TheoryTrainer from './components/TheoryTrainer'
+import MidiKeyboard from './components/MidiKeyboard'
 import { generateMusicXml } from './utils/musicXmlGenerator'
 import { BEGINNER_LESSONS } from './data/lessons'
 import type { Scale, StaffType, RhythmComplexity } from './utils/musicXmlGenerator'
@@ -26,12 +27,21 @@ function App() {
   const [playMode, setPlayMode] = useState<PlayMode>('Wait');
   const [bpm, setBpm] = useState(100);
   const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
+  const [activeNotes, setActiveNotes] = useState<number[]>([]);
 
   const handleGenerate = useCallback(() => {
     const newXml = generateMusicXml(measures, scale, staff, voices, complexity);
     setScore(newXml);
     setIsMetronomePlaying(false); // Stop metronome on new exercise
   }, [measures, scale, staff, voices, complexity]);
+
+  const handleNotePlayed = useCallback((note: number) => {
+    setActiveNotes(prev => [...new Set([...prev, note])]);
+  }, []);
+
+  const handleNoteReleased = useCallback((note: number) => {
+    setActiveNotes(prev => prev.filter(n => n !== note));
+  }, []);
 
   useEffect(() => {
     handleGenerate();
@@ -130,12 +140,18 @@ function App() {
             {renderTrainerControls()}
             <div className="sheet-music-container">
               <SheetMusic 
+                title="Dynamic Reading Exercise"
                 score={score} 
                 zoom={zoom} 
                 playMode={playMode}
                 bpm={bpm}
                 isMoving={isMetronomePlaying}
+                onNotePlayed={handleNotePlayed}
+                onNoteReleased={handleNoteReleased}
               />
+              <div className="keyboard-preview">
+                <MidiKeyboard activeNotes={activeNotes} />
+              </div>
             </div>
             <div className="zoom-controls">
               <label>Zoom:</label>

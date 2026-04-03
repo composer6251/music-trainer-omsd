@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { OpenSheetMusicDisplay, Note } from 'opensheetmusicdisplay';
 import * as Tone from 'tone';
+import { useMidi } from '../utils/useMidi';
 import type { PlayMode } from '../App';
 
 interface SheetMusicProps {
@@ -26,16 +27,7 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
-  const [midiStatus, setMidiStatus] = useState<string>('Initializing MIDI...');
-
-  // Use refs to store latest callbacks to avoid re-binding MIDI listener
-  const onNotePlayedRef = useRef(onNotePlayed);
-  const onNoteReleasedRef = useRef(onNoteReleased);
-
-  useEffect(() => {
-    onNotePlayedRef.current = onNotePlayed;
-    onNoteReleasedRef.current = onNoteReleased;
-  }, [onNotePlayed, onNoteReleased]);
+  const [midiStatus, setMidiStatus] = useState<string>('MIDI Active');
 
   const highlightNote = (note: Note, color: string) => {
     const osmd = osmdRef.current;
@@ -58,10 +50,8 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
   };
 
   const checkNoteMatch = useCallback((playedMidiNote: number) => {
-    // Notify parent of the played note using ref
-    if (onNotePlayedRef.current) {
-      onNotePlayedRef.current(playedMidiNote);
-    }
+    // Notify parent
+    if (onNotePlayed) onNotePlayed(playedMidiNote);
 
     const osmd = osmdRef.current;
     if (!osmd || !osmd.cursor) return;
@@ -76,7 +66,6 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
         highlightNote(note, "#2ecc71"); // Correct -> Green
         matchFound = true;
       } else {
-        // Only turn red if it's the wrong pitch for the current note position
         highlightNote(note, "#e74c3c"); // Incorrect -> Red
       }
     });
@@ -86,25 +75,10 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
         osmd.cursor.next();
       }, 50);
     }
-  }, [playMode]);
+  }, [playMode, onNotePlayed]);
 
-  const handleMidiMessage = useCallback((event: any) => {
-    const data = event.data;
-    if (!data) return;
-    const [status, note, velocity] = data;
-    const type = status & 0xf0;
-
-    // Note On
-    if (type === 144 && velocity > 0) {
-      checkNoteMatch(note);
-    } 
-    // Note Off (128 or 144 with velocity 0)
-    else if (type === 128 || (type === 144 && velocity === 0)) {
-      if (onNoteReleasedRef.current) {
-        onNoteReleasedRef.current(note);
-      }
-    }
-  }, [checkNoteMatch]);
+  // Use the global MIDI hook
+  useMidi(checkNoteMatch, onNoteReleased);
 
   // Handle Cursor Movement in Continuous Mode
   useEffect(() => {
@@ -113,15 +87,13 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
     if (playMode === 'Continuous' && isMoving && osmdRef.current) {
       osmdRef.current.cursor.show();
       
-      // Advance cursor every quarter note (standard 4/4)
-      // Note: For complex rhythms, we'd need to sync with the actual MusicXML timestamps
       loop = new Tone.Loop((time) => {
         Tone.Draw.schedule(() => {
           if (osmdRef.current && osmdRef.current.cursor) {
             osmdRef.current.cursor.next();
           }
         }, time);
-      }, "4n"); // "4n" is a quarter note
+      }, "4n");
 
       loop.start(0);
     }
@@ -142,19 +114,7 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
         followCursor: true,
       });
     }
-
-    if (navigator.requestMIDIAccess) {
-      navigator.requestMIDIAccess().then(
-        (midiAccess) => {
-          setMidiStatus('MIDI Ready');
-          for (const input of midiAccess.inputs.values()) {
-            input.onmidimessage = handleMidiMessage;
-          }
-        },
-        () => setMidiStatus('MIDI Access Failed')
-      );
-    }
-  }, [handleMidiMessage]);
+  }, []);
 
   useEffect(() => {
     const loadScore = async () => {

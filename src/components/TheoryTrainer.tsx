@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { TheoryLesson } from '../types/theory';
 import SheetMusic from './SheetMusic';
 import MidiKeyboard from './MidiKeyboard';
+import { useMidi } from '../utils/useMidi';
 import * as Tone from 'tone';
 
 interface TheoryTrainerProps {
@@ -13,39 +14,13 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isStepSolved, setIsStepSolved] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [activeNotes, setActiveNotes] = useState<number[]>([]);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  const [activeNotes, setActiveNotes] = useState<number[]>([]);
 
   const currentStep = lesson.steps[currentStepIndex];
   const rhythmicInputs = useRef<{ beat: number; pitch: number; time: number }[]>([]);
   const synthRef = useRef<Tone.PolySynth | null>(null);
-
-  // Cleanup metronome and synth on unmount
-  useEffect(() => {
-    synthRef.current = new Tone.PolySynth(Tone.Synth).toDestination();
-    return () => {
-      Tone.Transport.stop();
-      Tone.Transport.cancel();
-      synthRef.current?.dispose();
-    };
-  }, []);
-
-  const startMetronome = async () => {
-    await Tone.start();
-    Tone.Transport.bpm.value = currentStep.bpm || 100;
-    
-    // Simple click sound
-    const osc = new Tone.Oscillator("C6", "sine").toDestination();
-    
-    Tone.Transport.scheduleRepeat((time) => {
-      osc.start(time).stop(time + 0.1);
-    }, "4n");
-
-    Tone.Transport.start();
-    setIsMetronomeActive(true);
-    rhythmicInputs.current = [];
-  };
 
   const handleNotePlayed = useCallback((note: number) => {
     setActiveNotes(prev => [...new Set([...prev, note])]);
@@ -72,11 +47,10 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
       
       rhythmicInputs.current.push({ beat: relativeBeat, pitch: note, time: Date.now() });
       
-      // Simple validation for the demo: Check if all expected notes were played
       const allFound = validation.expectedRhythm?.every(expected => {
         return rhythmicInputs.current.some(input => {
           const beatDiff = Math.abs(input.beat - expected.beat);
-          return input.pitch === expected.pitch && beatDiff < 0.2; // 0.2 beats tolerance
+          return input.pitch === expected.pitch && beatDiff < 0.2;
         });
       });
 
@@ -96,7 +70,35 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
     }
   }, []);
 
-  const goToNextStep = () => {
+  // Initialize MIDI hook with our callbacks
+  useMidi(handleNotePlayed, handleNoteReleased);
+
+  // Cleanup metronome and synth on unmount
+  useEffect(() => {
+    synthRef.current = new Tone.PolySynth(Tone.Synth).toDestination();
+    return () => {
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+      synthRef.current?.dispose();
+    };
+  }, []);
+
+  const startMetronome = async () => {
+    await Tone.start();
+    Tone.Transport.bpm.value = currentStep.bpm || 100;
+    
+    const osc = new Tone.Oscillator("C6", "sine").toDestination();
+    
+    Tone.Transport.scheduleRepeat((time) => {
+      osc.start(time).stop(time + 0.1);
+    }, "4n");
+
+    Tone.Transport.start();
+    setIsMetronomeActive(true);
+    rhythmicInputs.current = [];
+  };
+
+  const goToNextStep = useCallback(() => {
     if (currentStepIndex < lesson.steps.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
       setIsStepSolved(false);
@@ -104,7 +106,17 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
     } else {
       onComplete();
     }
-  };
+  }, [currentStepIndex, lesson.steps.length, onComplete]);
+
+  // Handle auto-advance
+  useEffect(() => {
+    if (isStepSolved && currentStep.autoAdvance) {
+      const timer = setTimeout(() => {
+        goToNextStep();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isStepSolved, currentStep.autoAdvance, goToNextStep]);
 
   const goToPrevStep = () => {
     if (currentStepIndex > 0) {
@@ -192,8 +204,10 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
           <div className="keyboard-section">
             <MidiKeyboard 
               activeNotes={activeNotes} 
-              startNote={60} 
-              endNote={72} 
+              startNote={currentStep.keyboardRange?.start || 60} 
+              endNote={currentStep.keyboardRange?.end || 72}
+              highlightedNotes={currentStep.highlightedNotes}
+              noteLabels={currentStep.noteLabels}
             />
           </div>
         </div>

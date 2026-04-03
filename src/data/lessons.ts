@@ -145,13 +145,115 @@ export const BEGINNER_MODULES: TheoryModule[] = [
         title: 'Keyboard Layout',
         steps: [
           {
-            id: 'kb-1',
-            title: 'The White Keys',
-            instruction: 'The white keys are named after the first seven letters of the alphabet: A, B, C, D, E, F, G. Find any C on the keyboard.',
-            successMessage: 'Great! You found a C.',
+            id: 'kb-c',
+            title: 'Middle C',
+            instruction: 'Press the highlighted keyboard key',
+            successMessage: 'Great! This is the Note C. Now play the new highlighted note next to it.',
+            keyboardRange: { start: 60, end: 71 }, // 1 octave: C4 to B4
+            highlightedNotes: [60],
+            autoAdvance: true,
             validation: {
               type: 'MATCH_PITCH',
-              expectedPitches: [36, 48, 60, 72, 84], 
+              expectedPitches: [60], 
+            }
+          },
+          {
+            id: 'kb-d',
+            title: 'Note D',
+            instruction: 'Great! This is the Note C. Now play the new highlighted note next to it.',
+            successMessage: 'Great! This is the Note D. Now, see if you can play the note E.',
+            keyboardRange: { start: 60, end: 71 },
+            highlightedNotes: [62],
+            noteLabels: { 60: 'C' },
+            autoAdvance: true,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [62], 
+            }
+          },
+          {
+            id: 'kb-e',
+            title: 'Note E',
+            instruction: 'Great! This is the Note D. Now, see if you can play the note E.',
+            successMessage: 'Excellent! Now find F.',
+            keyboardRange: { start: 60, end: 71 },
+            highlightedNotes: [64],
+            noteLabels: { 60: 'C', 62: 'D' },
+            autoAdvance: true,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [64], 
+            }
+          },
+          {
+            id: 'kb-f',
+            title: 'Note F',
+            instruction: 'Now find F.',
+            successMessage: 'Correct! Next is G.',
+            keyboardRange: { start: 60, end: 71 },
+            highlightedNotes: [65],
+            noteLabels: { 60: 'C', 62: 'D', 64: 'E' },
+            autoAdvance: true,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [65], 
+            }
+          },
+          {
+            id: 'kb-g',
+            title: 'Note G',
+            instruction: 'Next is G.',
+            successMessage: 'Well done! Find A.',
+            keyboardRange: { start: 60, end: 71 },
+            highlightedNotes: [67],
+            noteLabels: { 60: 'C', 62: 'D', 64: 'E', 65: 'F' },
+            autoAdvance: true,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [67], 
+            }
+          },
+          {
+            id: 'kb-a',
+            title: 'Note A',
+            instruction: 'Find A.',
+            successMessage: 'Almost there! Find B.',
+            keyboardRange: { start: 60, end: 71 },
+            highlightedNotes: [69],
+            noteLabels: { 60: 'C', 62: 'D', 64: 'E', 65: 'F', 67: 'G' },
+            autoAdvance: true,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [69], 
+            }
+          },
+          {
+            id: 'kb-b',
+            title: 'Note B',
+            instruction: 'Find B.',
+            successMessage: 'Great! These are the 7 notes of the C Major scale. The next note to play will be the 8th which begins a new Octave.',
+            keyboardRange: { start: 60, end: 71 },
+            highlightedNotes: [71],
+            noteLabels: { 60: 'C', 62: 'D', 64: 'E', 65: 'F', 67: 'G', 69: 'A' },
+            autoAdvance: true,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [71], 
+            }
+          },
+          {
+            id: 'kb-octave-2',
+            title: 'The Second Octave',
+            instruction: 'Now that we have added the next octave, notice that it looks identical to the first octave. And the note names are repeated.',
+            successMessage: 'You\'ve mastered the keyboard layout!',
+            keyboardRange: { start: 60, end: 83 }, // 2 octaves: C4 to B5
+            noteLabels: { 
+              60: 'C', 62: 'D', 64: 'E', 65: 'F', 67: 'G', 69: 'A', 71: 'B',
+              72: 'C', 74: 'D', 76: 'E', 77: 'F', 79: 'G', 81: 'A', 83: 'B'
+            },
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [72], // Prompt them to play the "new" C
             }
           }
         ]

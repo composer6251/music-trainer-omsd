@@ -7,6 +7,7 @@ import MidiKeyboard from './components/MidiKeyboard'
 import AudioInput from './components/AudioInput'
 import { generateMusicXml } from './utils/musicXmlGenerator'
 import { BEGINNER_MODULES } from './data/lessons'
+import { useMidi } from './utils/useMidi'
 import type { Scale, StaffType, RhythmComplexity } from './utils/musicXmlGenerator'
 import * as Tone from 'tone'
 
@@ -32,27 +33,14 @@ function App() {
   const [playMode, setPlayMode] = useState<PlayMode>('Wait');
   const [bpm, setBpm] = useState(100);
   const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
-  const [activeNotes, setActiveNotes] = useState<number[]>([]);
   const [inputSource, setInputSource] = useState<InputSource>('MIDI');
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [countInBars, setCountInBars] = useState(1);
   const [isCountingIn, setIsCountingIn] = useState(false);
+  const [activeNotes, setActiveNotes] = useState<number[]>([]);
 
   // Synth setup
   const synthRef = useRef<Tone.PolySynth | null>(null);
-
-  useEffect(() => {
-    synthRef.current = new Tone.PolySynth(Tone.Synth).toDestination();
-    return () => {
-      synthRef.current?.dispose();
-    };
-  }, []);
-
-  const handleGenerate = useCallback(() => {
-    const newXml = generateMusicXml(measures, scale, staff, voices, complexity);
-    setScore(newXml);
-    setIsMetronomePlaying(false); // Stop metronome on new exercise
-  }, [measures, scale, staff, voices, complexity]);
 
   const handleNotePlayed = useCallback((note: number) => {
     setActiveNotes(prev => [...new Set([...prev, note])]);
@@ -67,6 +55,22 @@ function App() {
       synthRef.current.triggerRelease(Tone.Frequency(note, "midi").toFrequency());
     }
   }, []);
+
+  // Initialize MIDI hook
+  useMidi(handleNotePlayed, handleNoteReleased);
+
+  useEffect(() => {
+    synthRef.current = new Tone.PolySynth(Tone.Synth).toDestination();
+    return () => {
+      synthRef.current?.dispose();
+    };
+  }, []);
+
+  const handleGenerate = useCallback(() => {
+    const newXml = generateMusicXml(measures, scale, staff, voices, complexity);
+    setScore(newXml);
+    setIsMetronomePlaying(false); // Stop metronome on new exercise
+  }, [measures, scale, staff, voices, complexity]);
 
   useEffect(() => {
     handleGenerate();

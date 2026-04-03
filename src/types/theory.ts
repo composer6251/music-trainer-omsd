@@ -16,6 +16,14 @@ export interface TheoryStep {
 
 export interface TheoryLesson {
   id: string;
-  moduleTitle: string;
+  title: string;
+  description?: string;
   steps: TheoryStep[];
+}
+
+export interface TheoryModule {
+  id: string;
+  title: string;
+  description?: string;
+  lessons: TheoryLesson[];
 }

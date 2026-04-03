@@ -15,15 +15,19 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
   const [feedback, setFeedback] = useState<string | null>(null);
   const [activeNotes, setActiveNotes] = useState<number[]>([]);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
 
   const currentStep = lesson.steps[currentStepIndex];
   const rhythmicInputs = useRef<{ beat: number; pitch: number; time: number }[]>([]);
+  const synthRef = useRef<Tone.PolySynth | null>(null);
 
-  // Cleanup metronome on unmount
+  // Cleanup metronome and synth on unmount
   useEffect(() => {
+    synthRef.current = new Tone.PolySynth(Tone.Synth).toDestination();
     return () => {
       Tone.Transport.stop();
       Tone.Transport.cancel();
+      synthRef.current?.dispose();
     };
   }, []);
 
@@ -45,6 +49,12 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
 
   const handleNotePlayed = useCallback((note: number) => {
     setActiveNotes(prev => [...new Set([...prev, note])]);
+    
+    // Play sound if enabled
+    if (isSoundEnabled && synthRef.current) {
+      synthRef.current.triggerAttack(Tone.Frequency(note, "midi").toFrequency());
+    }
+
     if (isStepSolved) return;
 
     const validation = currentStep.validation;
@@ -77,10 +87,13 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
         setIsMetronomeActive(false);
       }
     }
-  }, [currentStep, isStepSolved, isMetronomeActive]);
+  }, [currentStep, isStepSolved, isMetronomeActive, isSoundEnabled]);
 
   const handleNoteReleased = useCallback((note: number) => {
     setActiveNotes(prev => prev.filter(n => n !== note));
+    if (synthRef.current) {
+      synthRef.current.triggerRelease(Tone.Frequency(note, "midi").toFrequency());
+    }
   }, []);
 
   const goToNextStep = () => {
@@ -104,7 +117,26 @@ const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => 
   return (
     <div className="theory-trainer">
       <div className="lesson-header">
-        <h3>{lesson.moduleTitle}</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3>{lesson.title}</h3>
+          <div className="theory-controls">
+            <button 
+              className={isSoundEnabled ? 'active' : ''} 
+              onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+              style={{ 
+                padding: '6px 12px', 
+                fontSize: '0.8rem',
+                backgroundColor: isSoundEnabled ? '#646cff' : '#444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Sound: {isSoundEnabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+        </div>
         <div className="progress-bar">
           Step {currentStepIndex + 1} of {lesson.steps.length}
         </div>

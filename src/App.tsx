@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import './App.css'
 import SheetMusic from './components/SheetMusic'
 import Metronome from './components/Metronome'
@@ -6,8 +6,9 @@ import TheoryTrainer from './components/TheoryTrainer'
 import MidiKeyboard from './components/MidiKeyboard'
 import AudioInput from './components/AudioInput'
 import { generateMusicXml } from './utils/musicXmlGenerator'
-import { BEGINNER_LESSONS } from './data/lessons'
+import { BEGINNER_MODULES } from './data/lessons'
 import type { Scale, StaffType, RhythmComplexity } from './utils/musicXmlGenerator'
+import * as Tone from 'tone'
 
 type Page = 'Music Reading' | 'Learn Theory - Beginner' | 'Learn Theory - Advanced' | 'Composition';
 export type PlayMode = 'Wait' | 'Continuous';
@@ -17,6 +18,8 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('Music Reading');
   const [zoom, setZoom] = useState(1.0);
   const [score, setScore] = useState<string>('');
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   
   // Trainer Settings
   const [scale, setScale] = useState<Scale>('C Major');
@@ -31,6 +34,19 @@ function App() {
   const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
   const [activeNotes, setActiveNotes] = useState<number[]>([]);
   const [inputSource, setInputSource] = useState<InputSource>('MIDI');
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  const [countInBars, setCountInBars] = useState(1);
+  const [isCountingIn, setIsCountingIn] = useState(false);
+
+  // Synth setup
+  const synthRef = useRef<Tone.PolySynth | null>(null);
+
+  useEffect(() => {
+    synthRef.current = new Tone.PolySynth(Tone.Synth).toDestination();
+    return () => {
+      synthRef.current?.dispose();
+    };
+  }, []);
 
   const handleGenerate = useCallback(() => {
     const newXml = generateMusicXml(measures, scale, staff, voices, complexity);
@@ -40,10 +56,16 @@ function App() {
 
   const handleNotePlayed = useCallback((note: number) => {
     setActiveNotes(prev => [...new Set([...prev, note])]);
-  }, []);
+    if (isSoundEnabled && synthRef.current) {
+      synthRef.current.triggerAttack(Tone.Frequency(note, "midi").toFrequency());
+    }
+  }, [isSoundEnabled]);
 
   const handleNoteReleased = useCallback((note: number) => {
     setActiveNotes(prev => prev.filter(n => n !== note));
+    if (synthRef.current) {
+      synthRef.current.triggerRelease(Tone.Frequency(note, "midi").toFrequency());
+    }
   }, []);
 
   useEffect(() => {
@@ -99,6 +121,25 @@ function App() {
       </div>
 
       <div className="option-group">
+        <label>Sound:</label>
+        <button 
+          className={isSoundEnabled ? 'active' : ''} 
+          onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+          style={{ 
+            padding: '6px 12px', 
+            fontSize: '0.8rem',
+            backgroundColor: isSoundEnabled ? '#646cff' : '#444',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          {isSoundEnabled ? 'ON' : 'OFF'}
+        </button>
+      </div>
+
+      <div className="option-group">
         <label>Voices:</label>
         <select value={voices} onChange={(e) => setVoices(parseInt(e.target.value))}>
           <option value={1}>1 Voice</option>
@@ -133,11 +174,25 @@ function App() {
         </select>
       </div>
 
+      <div className="option-group">
+        <label>Count-in:</label>
+        <select value={countInBars} onChange={(e) => setCountInBars(parseInt(e.target.value))}>
+          <option value={0}>None</option>
+          <option value={1}>1 Bar</option>
+          <option value={2}>2 Bars</option>
+          <option value={3}>3 Bars</option>
+          <option value={4}>4 Bars</option>
+        </select>
+      </div>
+
       <Metronome 
         bpm={bpm} 
         onBpmChange={setBpm} 
         isPlaying={isMetronomePlaying} 
         onToggle={setIsMetronomePlaying} 
+        countInBars={countInBars}
+        onCountInStart={() => setIsCountingIn(true)}
+        onCountInComplete={() => setIsCountingIn(false)}
       />
 
       <button className="generate-btn" onClick={handleGenerate}>
@@ -175,7 +230,7 @@ function App() {
                 zoom={zoom} 
                 playMode={playMode}
                 bpm={bpm}
-                isMoving={isMetronomePlaying}
+                isMoving={isMetronomePlaying && !isCountingIn}
                 onNotePlayed={handleNotePlayed}
                 onNoteReleased={handleNoteReleased}
               />
@@ -195,26 +250,54 @@ function App() {
 
         {currentPage === 'Learn Theory - Beginner' && (
           <div className="theory-view">
-            {!score ? ( // Using score as a proxy to check if a lesson is selected
-              <div className="lesson-selection">
-                <h2>Beginner Theory Modules</h2>
-                <div className="module-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', padding: '20px' }}>
-                  {BEGINNER_LESSONS.map((lesson) => (
-                    <div key={lesson.id} className="module-card" style={{ background: '#1f1f1f', padding: '20px', borderRadius: '8px', cursor: 'pointer', border: '1px solid #333' }} onClick={() => setScore(lesson.id)}>
-                      <h3>{lesson.moduleTitle}</h3>
-                      <button className="primary">Start Module</button>
+            {!selectedLessonId ? (
+              <div className="theory-selection">
+                {!selectedModuleId ? (
+                  <div className="module-selection">
+                    <h2 style={{ padding: '0 20px' }}>Beginner Theory Modules</h2>
+                    <div className="module-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', padding: '20px' }}>
+                      {BEGINNER_MODULES.map((module) => (
+                        <div key={module.id} className="module-card" style={{ background: '#1f1f1f', padding: '30px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #333', textAlign: 'left', transition: 'all 0.2s ease' }} onClick={() => setSelectedModuleId(module.id)}>
+                          <h3 style={{ margin: '0 0 10px 0', fontSize: '1.5rem', color: '#3498db' }}>{module.title}</h3>
+                          {module.description && <p style={{ color: '#aaa', margin: '0 0 20px 0' }}>{module.description}</p>}
+                          <button className="primary" style={{ width: '100%' }}>View Lessons</button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="lesson-selection">
+                    <div style={{ padding: '0 20px', textAlign: 'left' }}>
+                      <button onClick={() => setSelectedModuleId(null)} style={{ marginBottom: '20px', background: 'transparent', border: '1px solid #555', color: '#fff' }}>&larr; Back to Modules</button>
+                      <h2 style={{ margin: '0 0 10px 0' }}>{BEGINNER_MODULES.find(m => m.id === selectedModuleId)?.title}</h2>
+                      <p style={{ color: '#aaa', marginBottom: '30px' }}>Select a lesson to begin.</p>
+                    </div>
+                    <div className="lesson-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', padding: '20px' }}>
+                      {BEGINNER_MODULES.find(m => m.id === selectedModuleId)?.lessons.map((lesson) => (
+                        <div key={lesson.id} className="lesson-card" style={{ background: '#1f1f1f', padding: '25px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #333', textAlign: 'left' }} onClick={() => setSelectedLessonId(lesson.id)}>
+                          <h3 style={{ margin: '0 0 15px 0', fontSize: '1.3rem' }}>{lesson.title}</h3>
+                          <button className="primary" style={{ width: '100%' }}>Start Lesson</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <TheoryTrainer 
-                lesson={BEGINNER_LESSONS.find(l => l.id === score) || BEGINNER_LESSONS[0]} 
-                onComplete={() => {
-                  setScore(''); // Reset to selection
-                  setCurrentPage('Music Reading');
-                }} 
-              />
+              <div style={{ position: 'relative' }}>
+                <button 
+                  onClick={() => setSelectedLessonId(null)} 
+                  style={{ position: 'absolute', top: '-10px', left: '20px', zIndex: 10, background: '#444', color: '#fff', fontSize: '0.8rem', padding: '5px 10px' }}
+                >
+                  &larr; Exit Lesson
+                </button>
+                <TheoryTrainer 
+                  lesson={BEGINNER_MODULES.find(m => m.id === selectedModuleId)?.lessons.find(l => l.id === selectedLessonId)!} 
+                  onComplete={() => {
+                    setSelectedLessonId(null);
+                  }} 
+                />
+              </div>
             )}
           </div>
         )}

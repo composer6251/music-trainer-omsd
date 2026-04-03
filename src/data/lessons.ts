@@ -1,4 +1,4 @@
-import type { TheoryLesson } from '../types/theory';
+import type { TheoryModule } from '../types/theory';
 
 // A simple 1-measure MusicXML with a single Middle C (C4)
 const middleCXml = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -135,113 +135,154 @@ const grandStaffCXml = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
   </part>
 </score-partwise>`;
 
-export const BEGINNER_LESSONS: TheoryLesson[] = [
+export const BEGINNER_MODULES: TheoryModule[] = [
   {
-    id: 'module-1',
-    moduleTitle: 'The Staff & Clefs (Line-by-Line)',
-    steps: [
+    id: 'module-keyboard',
+    title: 'Learn the notes of the keyboard',
+    lessons: [
       {
-        id: 'step-1',
-        title: 'Finding the Anchor',
-        instruction: 'In music, we use a "Staff" of five lines. But before we build the whole staff, let\'s find our home. Can you find Middle C on your keyboard? It often sits on its own "ledger line" below the staff.',
-        successMessage: 'Excellent! Middle C is our anchor point.',
-        musicXml: middleCXml,
-        validation: {
-          type: 'MATCH_PITCH',
-          expectedPitches: [60], // MIDI 60 = C4
-        }
-      },
-      {
-        id: 'step-2',
-        title: 'Moving Up',
-        instruction: 'Music is spatial. If we move up from Middle C to the very next note (a "step" up), we land on D. Can you find D on your keyboard?',
-        successMessage: 'Perfect! You\'ve moved from a line to the space just above it.',
-        musicXml: nextNoteXml,
-        validation: {
-          type: 'MATCH_PITCH',
-          expectedPitches: [62], // MIDI 62 = D4
-        }
-      },
-      {
-        id: 'step-3',
-        title: 'The First Floor',
-        instruction: 'As we continue climbing, we reach the very first line of the 5-line staff. This note is E. Can you find it? It\'s one step higher than D.',
-        successMessage: 'Great job! You\'ve reached the "First Floor" of the staff.',
-        musicXml: noteEXml,
-        validation: {
-          type: 'MATCH_PITCH',
-          expectedPitches: [64], // MIDI 64 = E4
-        }
-      },
-      {
-        id: 'step-4',
-        title: 'The G-Clef\'s Secret',
-        instruction: 'Look at the curly symbol on the left. It\'s the Treble Clef, also called the "G-Clef." Notice how it curls around the second line? That\'s a hint! Every note on that second line is a G. Try playing G!',
-        successMessage: 'Exactly! The clef "unlocks" the names of the lines for us.',
-        musicXml: noteGXml,
-        validation: {
-          type: 'MATCH_PITCH',
-          expectedPitches: [67], // MIDI 67 = G4
-        }
-      },
-      {
-        id: 'step-5',
-        title: 'Descending: The F-Clef',
-        instruction: 'Lower notes use a different staff called the Bass Clef. It\'s also known as the "F-Clef." Those two dots surround the fourth line from the bottom. Every note on that line is an F. Can you find this low F?',
-        successMessage: 'Well done! You\'ve mastered the lower territory.',
-        musicXml: noteF3Xml,
-        validation: {
-          type: 'MATCH_PITCH',
-          expectedPitches: [53], // MIDI 53 = F3
-        }
-      },
-      {
-        id: 'step-6',
-        title: 'The Grand Connection',
-        instruction: 'When we put the Treble and Bass staves together, we get the "Grand Staff." Notice how Middle C sits right in the middle, connecting them like a bridge. Find that Middle C one last time!',
-        successMessage: 'Perfect! You now understand how the entire musical map fits together.',
-        musicXml: grandStaffCXml,
-        validation: {
-          type: 'MATCH_PITCH',
-          expectedPitches: [60], // MIDI 60 = C4
-        }
+        id: 'keyboard-basics',
+        title: 'Keyboard Layout',
+        steps: [
+          {
+            id: 'kb-1',
+            title: 'The White Keys',
+            instruction: 'The white keys are named after the first seven letters of the alphabet: A, B, C, D, E, F, G. Find any C on the keyboard.',
+            successMessage: 'Great! You found a C.',
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [36, 48, 60, 72, 84], 
+            }
+          }
+        ]
       }
     ]
   },
   {
-    id: 'module-2',
-    moduleTitle: 'Rhythm Basics (Internalizing the Beat)',
-    steps: [
+    id: 'module-staff',
+    title: 'Learn the staff',
+    lessons: [
       {
-        id: 'rhythm-step-1',
-        title: 'The Heartbeat of Music',
-        instruction: 'Before we play notes, we must feel the pulse. The metronome is our musical heartbeat. Can you play Middle C exactly on Beats 1 and 3?',
-        successMessage: 'Perfect! You have a steady internal clock.',
-        musicXml: middleCXml,
-        bpm: 80,
-        validation: {
-          type: 'MATCH_RHYTHM',
-          expectedRhythm: [
-            { beat: 0, pitch: 60 },
-            { beat: 2, pitch: 60 }
-          ],
-          tolerance: 150
-        }
+        id: 'lesson-treble',
+        title: 'Treble Clef',
+        steps: [
+          {
+            id: 'tc-1',
+            title: 'Finding the Anchor',
+            instruction: 'Middle C often sits on its own "ledger line" below the staff. Can you find Middle C (C4) on your keyboard?',
+            successMessage: 'Excellent! Middle C is our anchor point.',
+            musicXml: middleCXml,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [60],
+            }
+          },
+          {
+            id: 'tc-2',
+            title: 'Moving Up to D',
+            instruction: 'If we move up from Middle C, we land on D. Can you find D4?',
+            successMessage: 'Perfect!',
+            musicXml: nextNoteXml,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [62],
+            }
+          },
+          {
+            id: 'tc-3',
+            title: 'The First Line: E',
+            instruction: 'The first line of the treble staff is E. Find E4.',
+            successMessage: 'Great job!',
+            musicXml: noteEXml,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [64],
+            }
+          },
+          {
+            id: 'tc-4',
+            title: 'The G-Clef',
+            instruction: 'The Treble Clef curls around the second line, which is G. Try playing G4!',
+            successMessage: 'Exactly!',
+            musicXml: noteGXml,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [67],
+            }
+          }
+        ]
       },
       {
-        id: 'rhythm-step-2',
-        title: 'The Half Note (Holding On)',
-        instruction: 'A "Half Note" lasts for two beats. Try to play Middle C on Beat 1 and hold it until the start of Beat 3.',
-        successMessage: 'Excellent control! You\'re not just playing notes; you\'re sculpting silence.',
-        musicXml: middleCXml,
-        bpm: 80,
-        validation: {
-          type: 'MATCH_RHYTHM',
-          expectedRhythm: [
-            { beat: 0, pitch: 60 }
-          ],
-          tolerance: 150
-        }
+        id: 'lesson-treble-8va',
+        title: 'Treble Clef 8va (Guitar)',
+        steps: [
+          {
+            id: 't8-1',
+            title: 'Guitar Range',
+            instruction: 'Guitar music is written an octave higher than it sounds. Play E3 (the note just below Middle C).',
+            successMessage: 'Correct!',
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [52],
+            }
+          }
+        ]
+      },
+      {
+        id: 'lesson-bass',
+        title: 'Bass Clef',
+        steps: [
+          {
+            id: 'bc-1',
+            title: 'The F-Clef',
+            instruction: 'The Bass Clef dots surround the F line. Find F3.',
+            successMessage: 'Well done!',
+            musicXml: noteF3Xml,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [53],
+            }
+          }
+        ]
+      },
+      {
+        id: 'lesson-grand',
+        title: 'Grand Staff',
+        steps: [
+          {
+            id: 'gs-1',
+            title: 'Connecting the Staves',
+            instruction: 'The Grand Staff connects Treble and Bass. Find Middle C again!',
+            successMessage: 'Perfect!',
+            musicXml: grandStaffCXml,
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [60],
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'module-chords',
+    title: 'Learn Chords',
+    lessons: [
+      {
+        id: 'lesson-major',
+        title: 'Major Chords',
+        steps: [
+          {
+            id: 'mc-1',
+            title: 'C Major',
+            instruction: 'Play C4, E4, and G4 together.',
+            successMessage: 'Beautiful!',
+            validation: {
+              type: 'MATCH_PITCH',
+              expectedPitches: [60, 64, 67],
+            }
+          }
+        ]
       }
     ]
   }

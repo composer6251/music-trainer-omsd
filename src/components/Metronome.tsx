@@ -6,10 +6,23 @@ interface MetronomeProps {
   onBpmChange: (bpm: number) => void;
   isPlaying: boolean;
   onToggle: (isPlaying: boolean) => void;
+  countInBars?: number;
+  onCountInStart?: () => void;
+  onCountInComplete?: () => void;
 }
 
-const Metronome: React.FC<MetronomeProps> = ({ bpm, onBpmChange, isPlaying, onToggle }) => {
+const Metronome: React.FC<MetronomeProps> = ({ 
+  bpm, 
+  onBpmChange, 
+  isPlaying, 
+  onToggle,
+  countInBars = 0,
+  onCountInStart,
+  onCountInComplete
+}) => {
   const [activeBeat, setActiveBeat] = useState(0);
+  const [isCountingInInternal, setIsCountingInInternal] = useState(false);
+  const [beatsLeft, setBeatsLeft] = useState(0);
 
   // Refined synth for a "woodblock" or "click" sound
   const clickSynth = useMemo(() => new Tone.Synth({
@@ -41,34 +54,76 @@ const Metronome: React.FC<MetronomeProps> = ({ bpm, onBpmChange, isPlaying, onTo
   }, [bpm]);
 
   useEffect(() => {
-    const loop = new Tone.Loop((time) => {
-      Tone.Draw.schedule(() => {
-        setActiveBeat((prev) => (prev + 1) % 4);
-      }, time);
-
-      // Play both a tone and a noise "click" for a more realistic feel
-      const freq = activeBeat === 0 ? "C6" : "C5";
-      clickSynth.triggerAttackRelease(freq, "32n", time);
-      noiseSynth.triggerAttack(time);
-    }, "4n");
+    let loop: Tone.Loop | null = null;
+    let beatsPlayed = 0;
+    const totalCountInBeats = countInBars * 4;
 
     if (isPlaying) {
       Tone.start();
       Tone.Transport.start();
+
+      if (totalCountInBeats > 0) {
+        setIsCountingInInternal(true);
+        setBeatsLeft(totalCountInBeats);
+        onCountInStart?.();
+      } else {
+        setIsCountingInInternal(false);
+        onCountInComplete?.();
+      }
+
+      loop = new Tone.Loop((time) => {
+        // Handle visual update and state transition
+        Tone.Draw.schedule(() => {
+          setActiveBeat(beatsPlayed % 4);
+          
+          if (beatsPlayed < totalCountInBeats) {
+            setBeatsLeft(totalCountInBeats - beatsPlayed);
+          } else if (beatsPlayed === totalCountInBeats) {
+            setIsCountingInInternal(false);
+            setBeatsLeft(0);
+            onCountInComplete?.();
+          }
+        }, time);
+
+        // Play click sound
+        const freq = (beatsPlayed % 4) === 0 ? "C6" : "C5";
+        clickSynth.triggerAttackRelease(freq, "32n", time);
+        noiseSynth.triggerAttack(time);
+        
+        beatsPlayed++;
+      }, "4n");
+
       loop.start(0);
     } else {
       Tone.Transport.stop();
       Tone.Transport.cancel();
       setActiveBeat(0);
+      setIsCountingInInternal(false);
+      setBeatsLeft(0);
+      onCountInComplete?.(); // Ensure cleanup
     }
 
     return () => {
-      loop.dispose();
+      if (loop) loop.dispose();
     };
-  }, [isPlaying, clickSynth, noiseSynth, activeBeat]);
+  }, [isPlaying, clickSynth, noiseSynth, countInBars, onCountInStart, onCountInComplete]);
 
   return (
     <div className="metronome">
+      {isCountingInInternal && (
+        <div className="count-in-overlay" style={{ 
+          fontSize: '1.2rem', 
+          fontWeight: 'bold', 
+          color: '#ff4757',
+          marginBottom: '5px',
+          animation: 'pulse 0.5s infinite alternate'
+        }}>
+          {beatsLeft > 4 
+            ? `Ready: ${Math.ceil(beatsLeft / 4)} Bars` 
+            : `Go: ${beatsLeft}`
+          }
+        </div>
+      )}
       <div className="metronome-visual">
         {[0, 1, 2, 3].map((i) => (
           <div 

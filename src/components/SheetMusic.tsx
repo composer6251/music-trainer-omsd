@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { OpenSheetMusicDisplay, Note } from 'opensheetmusicdisplay';
 import * as Tone from 'tone';
 import { useMidi } from '../utils/useMidi';
@@ -27,18 +27,23 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
-  const [midiStatus, setMidiStatus] = useState<string>('MIDI Active');
+  const midiStatus = 'MIDI Active';
 
   const highlightNote = (note: Note, color: string) => {
     const osmd = osmdRef.current;
     if (!osmd || !osmd.GraphicSheet) return;
 
-    const gNote = (osmd.GraphicSheet as any).GetGraphicalNoteFromLogicalNote(note);
+    interface GraphicalNote {
+      setColor?: (color: string) => void;
+      getSVGGElement?: () => HTMLElement;
+    }
+
+    const gNote = (osmd.GraphicSheet as unknown as { GetGraphicalNoteFromLogicalNote: (n: Note) => GraphicalNote }).GetGraphicalNoteFromLogicalNote(note);
     if (gNote) {
-      if (typeof (gNote as any).setColor === 'function') {
-        (gNote as any).setColor(color);
+      if (typeof gNote.setColor === 'function') {
+        gNote.setColor(color);
       } else {
-        const svgElement = (gNote as any).getSVGGElement?.();
+        const svgElement = gNote.getSVGGElement?.();
         if (svgElement) {
           svgElement.style.fill = color;
           if (svgElement.children[0]) {
@@ -60,7 +65,7 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
     let matchFound = false;
 
     notesUnderCursor.forEach((note) => {
-      const osmdPitch = (note.Pitch as any).getHalfTone() + 12;
+      const osmdPitch = (note.Pitch as unknown as { getHalfTone: () => number }).getHalfTone() + 12;
       
       if (osmdPitch === playedMidiNote) {
         highlightNote(note, "#2ecc71"); // Correct -> Green
@@ -84,7 +89,7 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
   useEffect(() => {
     let loop: Tone.Loop | null = null;
 
-    if (playMode === 'Continuous' && isMoving && osmdRef.current) {
+    if (playMode === 'Sight Reading with Metronome' && isMoving && osmdRef.current) {
       osmdRef.current.cursor.show();
       
       loop = new Tone.Loop((time) => {

@@ -19,5 +19,16 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.name="useEffect"] > BlockStatement CallExpression[callee.name=/^set[A-Z]/]',
+          message: 'Do not use useState setters directly within an effect body. This can cause cascading renders. Consider calculating values during event handlers or wrapping in Tone.Draw.schedule/requestAnimationFrame if deferred update is intended (See App.tsx:63).'
+        }
+      ]
+    }
   },
 ])

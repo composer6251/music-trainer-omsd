@@ -1,40 +1,45 @@
-# Project Context: Music Master Trainer
+# Project Context: Music Master Trainer (Handover - April 3, 2026)
 
-This document serves as a handover summary for the current state of the Music Master Trainer project.
+This document summarizes the current state of the project, including the significant refactoring of the theory system and the enhancements to the Music Reading interface.
 
 ## 🛠 Tech Stack
 - **Framework:** React (TypeScript) + Vite
 - **Music Rendering:** OpenSheetMusicDisplay (OSMD)
 - **Audio Engine:** Tone.js (Synthesis, Metronome, Transport)
-- **Input APIs:** Web MIDI API, Web Audio API (MediaDevices)
-- **Utilities:** Custom MusicXML Generator, Autocorrelation Pitch Detector
+- **Input API:** Web MIDI API, Web Audio API (MediaDevices)
+- **State Management:** React Hooks + Custom `useMidi` hook for global input.
 
-## 🏗 Core Architecture
-- **`App.tsx`**: Central state management for pages, navigation, and global trainer settings (Scale, Staff, Input, Sound).
-- **`SheetMusic.tsx`**: Renders MusicXML and handles the "Wait for Note" and "Continuous" play modes. Optimized with `useRef` for MIDI/Audio callbacks to prevent stale closures.
-- **`TheoryTrainer.tsx`**: A state-machine-driven instructional view. Manages lesson steps, Socratic prompts, and specialized validation (Pitch, Rhythm).
-- **`AudioInput.tsx`**: Custom pitch detection component. Translates microphone/line-in frequency into MIDI note numbers for monophonic instruments (Guitar/Voice).
-- **`MidiKeyboard.tsx`**: Visual feedback component with configurable octave ranges.
-- **`Metronome.tsx`**: High-precision click with woodblock synth and a configurable **Count-in** (1–4 bars).
+## 🏗 Core Architecture Updates
+- **`useMidi.ts`**: A global hook that provides a consistent `activeNotes` state and event listeners across all components. This ensures the visual keyboard and note displays work even when no sheet music is rendered.
+- **Theory Hierarchy**: Refactored from flat lessons to a **Module -> Lesson -> Step** hierarchy.
+- **`TheoryTrainer.tsx`**: Now handles auto-advancing steps, custom keyboard ranges, note highlighting, and note labels based on the `TheoryStep` configuration.
+- **`App.tsx`**: Centralizes navigation guards (preventing accidental exit from lessons) and the Music Reading exercise configuration.
 
 ## ✨ Key Features Implemented
-1. **Hybrid Input System**: Seamlessly toggle between MIDI and Audio (Mic/Line) for single-voice exercises.
-2. **Integrated Synthesizer**: PolySynth provides audible pitch feedback for all inputs with a global Sound ON/OFF toggle.
-3. **Advanced Metronome**: Includes a visual/audio count-in that pauses the exercise until the student is ready.
-4. **Theory Modules**:
-   - **Module 1 (Clefs/Staff)**: 6 steps covering Middle C, Treble/Bass Clef anchors, and the Grand Staff.
-   - **Module 2 (Rhythm Basics)**: Foundation for beat detection and internalizing the pulse.
-5. **Space-Optimized UI**: Grouped "Score + Keyboard" container with compact headers for single-screen visibility.
+1.  **"Learn the Keyboard" Module**: 
+    *   A guided discovery flow starting with a 1-octave keyboard (C4-B4).
+    *   Note-by-note discovery with automatic highlighting and permanent labels added upon success.
+    *   Automatic transition to a 2-octave keyboard once the first octave is mastered.
+2.  **Diatonic Note Range Selection**:
+    *   Reading exercises now support a user-defined range (Low Note to High Note).
+    *   Dropdowns are **Staff-aware** (filtered by clef range) and **Diatonic** (filtered by the selected scale).
+    *   Automatic recalibration if a scale/staff change makes the current range invalid.
+3.  **UI & Navigation**:
+    *   **Prominent Action Buttons**: "New Exercise" and "START/STOP" (Metronome) are now large, color-coded, and aligned.
+    *   **Note Display**: A bar above the keyboard showing the names (e.g., "C4", "Eb3") of all currently pressed notes.
+    *   **Navigation Guards**: Trigger `window.confirm` if a user attempts to navigate away from a lesson past Step 1.
+    *   **Streamlined Entry**: Modules with only one lesson start immediately; modules with multiple lessons show a selection sub-menu.
 
-## 🐛 Known Status & Fixes
-- **MIDI Stability**: Listeners are now bound only once using `useRef` to ensure the latest state is always accessible.
-- **Step Navigation**: Added `key={currentStep.id}` to force `SheetMusic` re-mounts when advancing steps, preventing OSMD rendering glitches.
+## 📖 Lesson Content (Beginner)
+- **Keyboard**: Layout basics (The 7 notes + 2nd Octave expansion).
+- **The Staff**: Dedicated lessons for Treble, Bass, Alto, Treble 8va (Guitar), and Grand Staff.
+- **Chords**: Introduction to Major chords (C Major).
 
-## 🚀 Next Steps
-1. **Rhythm Refinement**: Implement "Early/Late" feedback for rhythmic inputs and add Half/Whole note release validation.
-2. **Pedagogical Expansion**: Complete Module 2 (Rhythm) and start Module 3 (Scales & The Tonic).
-3. **SVG Scaffolding**: Implement dynamic SVG manipulation to hide/show staff lines for beginner spatial lessons.
-4. **Audio Calibration**: Fine-tune the "Noise Floor" and "Stability" of the pitch detector for various acoustic environments.
+## 🐛 Known Status
+- **Type Safety**: All components pass `tsc` type-checking.
+- **Metronome Logic**: Metronome button is now context-sensitive and only displays/activates in "Sight Reading with Metronome" mode.
 
----
-*Last Updated: April 2, 2026*
+## 🚀 Future Roadmap
+1.  **Rhythm Module**: Complete the Module 2 foundations (Early/Late feedback).
+2.  **Advanced Theory**: Implement Module 3 (Scales & Tonics).
+3.  **Visual Keyboard Improvements**: Add support for black key highlighting and labeling.

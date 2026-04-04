@@ -7,7 +7,7 @@ interface ScaleConfig {
   notes: string[];
 }
 
-const SCALE_MAP: Record<Scale, ScaleConfig> = {
+export const SCALE_MAP: Record<Scale, ScaleConfig> = {
   'C Major': { fifths: 0, notes: ['C', 'D', 'E', 'F', 'G', 'A', 'B'] },
   'G Major': { fifths: 1, notes: ['G', 'A', 'B', 'C', 'D', 'E', 'F#'] },
   'F Major': { fifths: -1, notes: ['F', 'G', 'A', 'Bb', 'C', 'D', 'E'] },
@@ -17,14 +17,21 @@ const SCALE_MAP: Record<Scale, ScaleConfig> = {
   'E Minor': { fifths: 1, notes: ['E', 'F#', 'G', 'A', 'B', 'C', 'D'] },
 };
 
-interface NoteData {
-  step: string;
-  alter: number;
-  octave: number;
-  type: string;
-  duration: number;
-  isChord?: boolean;
-}
+export const isNoteInScale = (midi: number, scale: Scale) => {
+  const config = SCALE_MAP[scale];
+  
+  // A note is in the scale if its base name (C, D, etc.) matches a note in the scale 
+  // AND its accidental (if any) matches the scale's accidental for that note.
+  return config.notes.some(scaleNote => {
+    // scaleNote is like 'F#' or 'Bb' or 'C'
+    return midiToNoteNameWithoutOctave(midi) === scaleNote;
+  });
+};
+
+const midiToNoteNameWithoutOctave = (midi: number) => {
+  const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  return notes[midi % 12];
+};
 
 const getRhythms = (complexity: RhythmComplexity): { type: string, duration: number }[] => {
   switch (complexity) {
@@ -48,15 +55,27 @@ const getRhythms = (complexity: RhythmComplexity): { type: string, duration: num
   }
 };
 
+const getPartName = (staff: StaffType): string => {
+  switch (staff) {
+    case 'Treble': return 'Treble';
+    case 'Bass': return 'Bass';
+    case 'Alto': return 'Alto';
+    case 'Treble8va': return 'Treble 8va';
+    case 'Grand': return 'Grand Staff';
+    default: return 'Piano';
+  }
+};
+
 export const generateMusicXml = (
   numMeasures: number = 8,
   scale: Scale = 'C Major',
   staff: StaffType = 'Treble',
   voices: number = 1,
-  complexity: RhythmComplexity = 'Basic'
+  complexity: RhythmComplexity = 'Basic',
+  lowNote: number = 60,
+  highNote: number = 72
 ): string => {
   const config = SCALE_MAP[scale];
-  const octaves = staff === 'Bass' ? [2, 3] : (staff === 'Alto' ? [3, 4] : [4, 5]);
   const availableRhythms = getRhythms(complexity);
   const divisions = 2; // 1 duration unit = 8th note
   const beatsPerMeasure = 8; // 4/4 time * 2 divisions
@@ -81,17 +100,26 @@ export const generateMusicXml = (
     }
 
     while (measureBeats < beatsPerMeasure) {
-      // Pick a rhythm that fits in the remaining space
       const remaining = beatsPerMeasure - measureBeats;
       const validRhythms = availableRhythms.filter(r => r.duration <= remaining);
       const rhythm = validRhythms[Math.floor(Math.random() * validRhythms.length)];
       
       const numVoices = Math.max(1, voices);
       for (let v = 0; v < numVoices; v++) {
-        const fullNote = config.notes[Math.floor(Math.random() * config.notes.length)];
-        const step = fullNote[0];
-        const alter = fullNote.includes('#') ? 1 : (fullNote.includes('b') ? -1 : 0);
-        const octave = octaves[Math.floor(Math.random() * octaves.length)];
+        // Generate a random note within the MIDI range that fits the scale
+        let midi = Math.floor(Math.random() * (highNote - lowNote + 1)) + lowNote;
+        
+        // Simple scale snapping: if note not in scale, nudge it until it is
+        let attempts = 0;
+        while (!isNoteInScale(midi, scale) && attempts < 12) {
+          midi = (midi + 1 > highNote) ? lowNote : midi + 1;
+          attempts++;
+        }
+
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const step = noteNames[midi % 12][0];
+        const alter = noteNames[midi % 12].includes('#') ? 1 : 0;
+        const octave = Math.floor(midi / 12) - 1;
 
         measureXml += `
           <note>
@@ -122,7 +150,7 @@ export const generateMusicXml = (
 <score-partwise version="3.1">
   <work><work-title>Dynamic Reading Exercise</work-title></work>
   <part-list>
-    <score-part id="P1"><part-name>Piano</part-name></score-part>
+    <score-part id="P1"><part-name>${getPartName(staff)}</part-name></score-part>
   </part-list>
   <part id="P1">
     ${scoreContent}

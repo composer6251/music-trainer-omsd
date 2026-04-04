@@ -13,7 +13,7 @@ export const useMidi = (
     onNoteReleasedRef.current = onNoteReleased;
   }, [onNotePlayed, onNoteReleased]);
 
-  const handleMidiMessage = useCallback((event: any) => {
+  const handleMidiMessage = useCallback((event: WebMidi.MIDIMessageEvent) => {
     const data = event.data;
     if (!data) return;
     const [status, note, velocity] = data;
@@ -38,13 +38,13 @@ export const useMidi = (
       navigator.requestMIDIAccess().then(
         (midiAccess) => {
           for (const input of midiAccess.inputs.values()) {
-            input.onmidimessage = handleMidiMessage;
+            input.onmidimessage = handleMidiMessage as (e: Event) => void;
           }
 
           // Handle hot-plugging
-          midiAccess.onstatechange = (e: any) => {
+          midiAccess.onstatechange = (e: WebMidi.MIDIConnectionEvent) => {
             if (e.port.type === 'input' && e.port.state === 'connected') {
-              e.port.onmidimessage = handleMidiMessage;
+              (e.port as WebMidi.MIDIInput).onmidimessage = handleMidiMessage as (e: Event) => void;
             }
           };
         },

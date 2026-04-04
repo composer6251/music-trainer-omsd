@@ -9,6 +9,7 @@ interface MetronomeProps {
   countInBars?: number;
   onCountInStart?: () => void;
   onCountInComplete?: () => void;
+  silent?: boolean;
 }
 
 const Metronome: React.FC<MetronomeProps> = ({ 
@@ -18,7 +19,8 @@ const Metronome: React.FC<MetronomeProps> = ({
   onToggle,
   countInBars = 0,
   onCountInStart,
-  onCountInComplete
+  onCountInComplete,
+  silent = false
 }) => {
   const [activeBeat, setActiveBeat] = useState(0);
   const [isCountingInInternal, setIsCountingInInternal] = useState(false);
@@ -62,14 +64,16 @@ const Metronome: React.FC<MetronomeProps> = ({
       Tone.start();
       Tone.Transport.start();
 
-      if (totalCountInBeats > 0) {
-        setIsCountingInInternal(true);
-        setBeatsLeft(totalCountInBeats);
-        onCountInStart?.();
-      } else {
-        setIsCountingInInternal(false);
-        onCountInComplete?.();
-      }
+      Tone.Draw.schedule(() => {
+        if (totalCountInBeats > 0) {
+          setIsCountingInInternal(true);
+          setBeatsLeft(totalCountInBeats);
+          onCountInStart?.();
+        } else {
+          setIsCountingInInternal(false);
+          onCountInComplete?.();
+        }
+      }, Tone.now());
 
       loop = new Tone.Loop((time) => {
         // Handle visual update and state transition
@@ -85,10 +89,12 @@ const Metronome: React.FC<MetronomeProps> = ({
           }
         }, time);
 
-        // Play click sound
-        const freq = (beatsPlayed % 4) === 0 ? "C6" : "C5";
-        clickSynth.triggerAttackRelease(freq, "32n", time);
-        noiseSynth.triggerAttack(time);
+        // Play click sound if not silent
+        if (!silent) {
+          const freq = (beatsPlayed % 4) === 0 ? "C6" : "C5";
+          clickSynth.triggerAttackRelease(freq, "32n", time);
+          noiseSynth.triggerAttack(time);
+        }
         
         beatsPlayed++;
       }, "4n");
@@ -97,16 +103,18 @@ const Metronome: React.FC<MetronomeProps> = ({
     } else {
       Tone.Transport.stop();
       Tone.Transport.cancel();
-      setActiveBeat(0);
-      setIsCountingInInternal(false);
-      setBeatsLeft(0);
-      onCountInComplete?.(); // Ensure cleanup
+      Tone.Draw.schedule(() => {
+        setActiveBeat(0);
+        setIsCountingInInternal(false);
+        setBeatsLeft(0);
+        onCountInComplete?.();
+      }, Tone.now());
     }
 
     return () => {
       if (loop) loop.dispose();
     };
-  }, [isPlaying, clickSynth, noiseSynth, countInBars, onCountInStart, onCountInComplete]);
+  }, [isPlaying, clickSynth, noiseSynth, countInBars, onCountInStart, onCountInComplete, silent]);
 
   return (
     <div className="metronome">

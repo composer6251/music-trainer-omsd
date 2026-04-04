@@ -8,15 +8,26 @@ import * as Tone from 'tone';
 interface TheoryTrainerProps {
   lesson: TheoryLesson;
   onComplete: () => void;
+  onStepChange?: (stepIndex: number) => void;
 }
 
-const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete }) => {
+const TheoryTrainer: React.FC<TheoryTrainerProps> = ({ lesson, onComplete, onStepChange }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isStepSolved, setIsStepSolved] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isMetronomeActive, setIsMetronomeActive] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [activeNotes, setActiveNotes] = useState<number[]>([]);
+
+  // Notify parent of step change
+  useEffect(() => {
+    if (onStepChange) {
+      const handle = requestAnimationFrame(() => {
+        onStepChange(currentStepIndex);
+      });
+      return () => cancelAnimationFrame(handle);
+    }
+  }, [currentStepIndex, onStepChange]);
 
   const currentStep = lesson.steps[currentStepIndex];
   const rhythmicInputs = useRef<{ beat: number; pitch: number; time: number }[]>([]);

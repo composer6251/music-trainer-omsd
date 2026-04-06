@@ -1,4 +1,5 @@
 import React from 'react';
+import { midiToNoteName } from '../utils/noteUtils';
 
 interface MidiKeyboardProps {
   activeNotes: number[]; // Array of MIDI note numbers
@@ -17,13 +18,6 @@ const MidiKeyboard: React.FC<MidiKeyboardProps> = ({
 }) => {
   const keys = [];
   
-  const midiToNoteName = (midi: number) => {
-    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    const octave = Math.floor(midi / 12) - 1;
-    const name = notes[midi % 12];
-    return `${name}${octave}`;
-  };
-
   const isBlackKey = (midi: number) => {
     const note = midi % 12;
     return [1, 3, 6, 8, 10].includes(note);

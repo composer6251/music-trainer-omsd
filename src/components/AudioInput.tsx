@@ -16,7 +16,7 @@ const AudioInput: React.FC<AudioInputProps> = ({ onNoteDetected, onNoteLost, isA
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number>(undefined);
   const lastNoteRef = useRef<number | null>(null);
   const [isMicReady, setIsMicReady] = useState(false);
 
@@ -66,6 +66,8 @@ const AudioInput: React.FC<AudioInputProps> = ({ onNoteDetected, onNoteLost, isA
     return sampleRate / T0;
   };
 
+  const detectPitchRef = useRef<() => void>(() => {});
+
   const detectPitch = useCallback(() => {
     if (!analyserRef.current || !audioContextRef.current) return;
 
@@ -90,8 +92,14 @@ const AudioInput: React.FC<AudioInputProps> = ({ onNoteDetected, onNoteLost, isA
       lastNoteRef.current = null;
     }
 
-    animationFrameRef.current = requestAnimationFrame(detectPitch);
+    animationFrameRef.current = requestAnimationFrame(() => {
+      detectPitchRef.current();
+    });
   }, [onNoteDetected, onNoteLost]);
+
+  useEffect(() => {
+    detectPitchRef.current = detectPitch;
+  }, [detectPitch]);
 
   const startAudio = useCallback(async () => {
     try {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import './App.css'
 import SheetMusic from './components/SheetMusic'
 import Metronome from './components/Metronome'
@@ -8,12 +8,14 @@ import AudioInput from './components/AudioInput'
 import { generateMusicXml, isNoteInScale } from './utils/musicXmlGenerator'
 import { BEGINNER_MODULES } from './data/lessons'
 import { useMidi } from './utils/useMidi'
+import { midiToNoteName } from './utils/noteUtils'
 import type { Scale, StaffType, RhythmComplexity } from './utils/musicXmlGenerator'
 import * as Tone from 'tone'
 
 type Page = 'Music Reading' | 'Learn Theory - Beginner' | 'Learn Theory - Advanced' | 'Composition';
-export type PlayMode = 'Wait' | 'Sight Reading with Metronome' | 'Sight Reading without Metronome';
+export type PlayMode = 'Wait' | 'Sight Read with Metronome' | 'Sight Read without Metronome';
 type InputSource = 'MIDI' | 'Audio';
+type ExerciseSource = 'Generator' | 'Custom File';
 
 // Staff range mapping (MIDI numbers)
 const STAFF_RANGES: Record<StaffType, { min: number; max: number }> = {
@@ -27,7 +29,7 @@ const STAFF_RANGES: Record<StaffType, { min: number; max: number }> = {
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('Music Reading');
   const [zoom, setZoom] = useState(1.0);
-  const [score, setScore] = useState<string>('');
+  const [customScore, setCustomScore] = useState<string>('');
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   
@@ -49,10 +51,43 @@ function App() {
   const [isCountingIn, setIsCountingIn] = useState(false);
   const [activeNotes, setActiveNotes] = useState<number[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [exerciseSource, setExerciseSource] = useState<ExerciseSource>('Custom File');
+  const [customFileName, setCustomFileName] = useState<string>('sample.musicxml');
+  const [generationKey, setGenerationKey] = useState(0);
 
-  const midiToNoteName = (midi: number) => {
-    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    return `${notes[midi % 12]}${Math.floor(midi / 12) - 1}`;
+  // Derive generated score
+  const generatedScore = useMemo(() => {
+    if (exerciseSource !== 'Generator') return '';
+    // Use void to reference generationKey to satisfy useMemo dependency rules
+    void generationKey;
+    return generateMusicXml(measures, scale, staff, voices, complexity, lowNote, highNote);
+  }, [measures, scale, staff, voices, complexity, lowNote, highNote, generationKey, exerciseSource]);
+
+  const score = exerciseSource === 'Generator' ? generatedScore : customScore;
+
+  const loadLocalScore = useCallback(async (path: string) => {
+    try {
+      const response = await fetch(path);
+      const text = await response.text();
+      setCustomScore(text);
+      setCustomFileName(path.split('/').pop() || path);
+    } catch (error) {
+      console.error("Error loading local score:", error);
+    }
+  }, []);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        setCustomScore(content);
+        setCustomFileName(file.name);
+        setExerciseSource('Custom File');
+      };
+      reader.readAsText(file);
+    }
   };
 
   const findDiatonic = useCallback((preferred: number, direction: 'up' | 'down', currentStaff: StaffType, currentScale: Scale) => {
@@ -109,17 +144,20 @@ function App() {
   }, []);
 
   const handleGenerate = useCallback(() => {
-    const newXml = generateMusicXml(measures, scale, staff, voices, complexity, lowNote, highNote);
-    setScore(newXml);
+    if (exerciseSource === 'Generator') {
+      setGenerationKey(prev => prev + 1);
+    }
     setIsMetronomePlaying(false); // Stop metronome on new exercise
-  }, [measures, scale, staff, voices, complexity, lowNote, highNote]);
+  }, [exerciseSource]);
 
   useEffect(() => {
-    const handle = requestAnimationFrame(() => {
-      handleGenerate();
-    });
-    return () => cancelAnimationFrame(handle);
-  }, [handleGenerate]);
+    if (exerciseSource === 'Custom File' && !customScore && customFileName === 'sample.musicxml') {
+      // Defer to avoid cascading render error from strict lint rule
+      requestAnimationFrame(() => {
+        loadLocalScore('/sample.musicxml');
+      });
+    }
+  }, [exerciseSource, customScore, customFileName, loadLocalScore]);
 
   const changePage = (page: Page) => {
     // Nav guard: if in a lesson (passed step 1)
@@ -175,197 +213,236 @@ function App() {
 
     return (
       <div className="trainer-options">
-        <div className="option-group">
-          <label>Scale:</label>
-          <select value={scale} onChange={(e) => {
-            const newScale = e.target.value as Scale;
-            setScale(newScale);
-            validateNotes(staff, newScale, lowNote, highNote);
-          }}>
-            <option>C Major</option>
-            <option>G Major</option>
-            <option>F Major</option>
-            <option>D Major</option>
-            <option>Bb Major</option>
-            <option>A Minor</option>
-            <option>E Minor</option>
-          </select>
+        <div className="option-row" style={{ borderBottom: '1px solid #444', marginBottom: '10px' }}>
+          <label style={{ fontSize: '1rem', color: '#3498db', marginRight: '15px' }}>Exercise Source:</label>
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input 
+                type="radio" 
+                checked={exerciseSource === 'Generator'} 
+                onChange={() => setExerciseSource('Generator')} 
+              />
+              Random Generator
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input 
+                type="radio" 
+                checked={exerciseSource === 'Custom File'} 
+                onChange={() => setExerciseSource('Custom File')} 
+              />
+              Upload / Custom File
+            </label>
+            {exerciseSource === 'Custom File' && (
+              <div style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input 
+                  type="file" 
+                  accept=".musicxml,.xml" 
+                  onChange={handleFileUpload}
+                  style={{ fontSize: '0.8rem' }}
+                />
+                <span style={{ fontSize: '0.8rem', color: '#888' }}>Current: {customFileName}</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="option-group">
-          <label>Staff:</label>
-          <select value={staff} onChange={(e) => {
-            const newStaff = e.target.value as StaffType;
-            setStaff(newStaff);
-            validateNotes(newStaff, scale, lowNote, highNote);
-          }}>
-            <option value="Treble">Treble Staff</option>
-            <option value="Bass">Bass Staff</option>
-            <option value="Alto">Alto Staff</option>
-            <option value="Treble8va">Treble 8va (Guitar)</option>
-            <option value="Grand">Grand Staff</option>
-          </select>
+        {/* Group 1: Staff, Scale, Voices, Range, Length */}
+        {exerciseSource === 'Generator' && (
+          <div className="option-row">
+            <div className="option-group">
+              <label>Staff:</label>
+              <select value={staff} onChange={(e) => {
+                const newStaff = e.target.value as StaffType;
+                setStaff(newStaff);
+                validateNotes(newStaff, scale, lowNote, highNote);
+              }}>
+                <option value="Treble">Treble Staff</option>
+                <option value="Bass">Bass Staff</option>
+                <option value="Alto">Alto Staff</option>
+                <option value="Treble8va">Treble 8va (Guitar)</option>
+                <option value="Grand">Grand Staff</option>
+              </select>
+            </div>
+
+            <div className="option-group">
+              <label>Scale:</label>
+              <select value={scale} onChange={(e) => {
+                const newScale = e.target.value as Scale;
+                setScale(newScale);
+                validateNotes(staff, newScale, lowNote, highNote);
+              }}>
+                <option>C Major</option>
+                <option>G Major</option>
+                <option>F Major</option>
+                <option>D Major</option>
+                <option>Bb Major</option>
+                <option>A Minor</option>
+                <option>E Minor</option>
+              </select>
+            </div>
+
+            <div className="option-group">
+              <label>Voices:</label>
+              <select value={voices} onChange={(e) => setVoices(parseInt(e.target.value))}>
+                <option value={1}>1 Voice</option>
+                <option value={2}>2 Voices</option>
+              </select>
+            </div>
+
+            <div className="option-group">
+              <label>Range:</label>
+              <select value={lowNote} onChange={(e) => setLowNote(parseInt(e.target.value))}>
+                {notes.filter(n => n < highNote).map(n => (
+                  <option key={n} value={n}>{midiToNoteName(n)}</option>
+                ))}
+              </select>
+              <span>to</span>
+              <select value={highNote} onChange={(e) => setHighNote(parseInt(e.target.value))}>
+                {notes.filter(n => n > lowNote).map(n => (
+                  <option key={n} value={n}>{midiToNoteName(n)}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="option-group">
+              <label>Length:</label>
+              <select value={measures} onChange={(e) => setMeasures(parseInt(e.target.value))}>
+                <option value={4}>4 Bars</option>
+                <option value={8}>8 Bars</option>
+                <option value={16}>16 Bars</option>
+                <option value={32}>32 Bars</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Group 2: Complexity, Metronome, Count-In */}
+        <div className="option-row">
+          {exerciseSource === 'Generator' && (
+            <div className="option-group">
+              <label>Complexity:</label>
+              <select value={complexity} onChange={(e) => setComplexity(e.target.value as RhythmComplexity)}>
+                <option value="Basic">Basic (Quarter only)</option>
+                <option value="Intermediate">Intermediate (+8th, Half)</option>
+                <option value="Advanced">Advanced (+Whole)</option>
+              </select>
+            </div>
+          )}
+
+          <div className="option-group">
+            <label>Metronome:</label>
+            <Metronome 
+              bpm={bpm} 
+              onBpmChange={setBpm} 
+              isPlaying={isMetronomePlaying} 
+              countInBars={countInBars}
+              onCountInStart={() => setIsCountingIn(true)}
+              onCountInComplete={() => setIsCountingIn(false)}
+              silent={playMode === 'Sight Read without Metronome'}
+            />
+          </div>
+
+          <div className="option-group">
+            <label>Count-in:</label>
+            <select value={countInBars} onChange={(e) => setCountInBars(parseInt(e.target.value))}>
+              <option value={0}>None</option>
+              <option value={1}>1 Bar</option>
+              <option value={2}>2 Bars</option>
+              <option value={3}>3 Bars</option>
+              <option value={4}>4 Bars</option>
+            </select>
+          </div>
         </div>
 
-        <div className="option-group">
-          <label>Low Note:</label>
-          <select value={lowNote} onChange={(e) => setLowNote(parseInt(e.target.value))}>
-            {notes.filter(n => n < highNote).map(n => (
-              <option key={n} value={n}>{midiToNoteName(n)}</option>
-            ))}
-          </select>
+        {/* Group 3: Input, Sound, Mode, Buttons */}
+        <div className="option-row" style={{ borderBottom: 'none' }}>
+          <div className="option-group">
+            <label>Input:</label>
+            <select value={inputSource} onChange={(e) => setInputSource(e.target.value as InputSource)}>
+              <option value="MIDI">MIDI Device</option>
+              <option value="Audio">Acoustic / Mic</option>
+            </select>
+          </div>
+
+          <div className="option-group">
+            <label>Sound:</label>
+            <button 
+              className={isSoundEnabled ? 'active' : ''} 
+              onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+              style={{ 
+                padding: '6px 12px', 
+                fontSize: '0.8rem',
+                backgroundColor: isSoundEnabled ? '#646cff' : '#444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                minWidth: '50px'
+              }}
+            >
+              {isSoundEnabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          <div className="option-group">
+            <label>Mode:</label>
+            <select value={playMode} onChange={(e) => setPlayMode(e.target.value as PlayMode)}>
+              <option value="Wait">Wait for Note</option>
+              <option value="Sight Read with Metronome">Sight Reading with Metronome</option>
+              <option value="Sight Read without Metronome">Sight Reading without Metronome</option>
+            </select>
+          </div>
+
+          <div className="option-actions" style={{ display: 'flex', gap: '15px', marginLeft: 'auto' }}>
+            {exerciseSource === 'Generator' && (
+              <button 
+                className="generate-btn" 
+                onClick={handleGenerate}
+                style={{ 
+                  padding: '10px 20px', 
+                  fontSize: '1rem', 
+                  fontWeight: 'bold',
+                  backgroundColor: '#3498db',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}
+              >
+                New Exercise
+              </button>
+            )}
+            <button 
+              className={`start-btn ${isMetronomePlaying ? 'active' : ''}`}
+              onClick={() => {
+                if (playMode.startsWith('Sight Read')) {
+                  setIsMetronomePlaying(!isMetronomePlaying);
+                }
+              }}
+              style={{ 
+                padding: '10px 20px', 
+                fontSize: '1rem', 
+                fontWeight: 'bold',
+                backgroundColor: isMetronomePlaying ? '#e74c3c' : '#2ecc71',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: playMode.startsWith('Sight Read') ? 'block' : 'none'
+              }}
+            >
+              {isMetronomePlaying ? 'STOP' : 'START'}
+            </button>
+          </div>
         </div>
-
-        <div className="option-group">
-          <label>High Note:</label>
-          <select value={highNote} onChange={(e) => setHighNote(parseInt(e.target.value))}>
-            {notes.filter(n => n > lowNote).map(n => (
-              <option key={n} value={n}>{midiToNoteName(n)}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="option-group">
-          <label>Input:</label>
-        <select value={inputSource} onChange={(e) => setInputSource(e.target.value as InputSource)}>
-          <option value="MIDI">MIDI Device</option>
-          <option value="Audio">Acoustic / Mic</option>
-        </select>
       </div>
-
-      <div className="option-group">
-        <label>Sound:</label>
-        <button 
-          className={isSoundEnabled ? 'active' : ''} 
-          onClick={() => setIsSoundEnabled(!isSoundEnabled)}
-          style={{ 
-            padding: '6px 12px', 
-            fontSize: '0.8rem',
-            backgroundColor: isSoundEnabled ? '#646cff' : '#444',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          {isSoundEnabled ? 'ON' : 'OFF'}
-        </button>
-      </div>
-
-      <div className="option-group">
-        <label>Voices:</label>
-        <select value={voices} onChange={(e) => setVoices(parseInt(e.target.value))}>
-          <option value={1}>1 Voice</option>
-          <option value={2}>2 Voices</option>
-        </select>
-      </div>
-
-      <div className="option-group">
-        <label>Length:</label>
-        <select value={measures} onChange={(e) => setMeasures(parseInt(e.target.value))}>
-          <option value={4}>4 Bars</option>
-          <option value={8}>8 Bars</option>
-          <option value={16}>16 Bars</option>
-          <option value={32}>32 Bars</option>
-        </select>
-      </div>
-
-      <div className="option-group">
-        <label>Mode:</label>
-        <select value={playMode} onChange={(e) => setPlayMode(e.target.value as PlayMode)}>
-          <option value="Wait">Wait for Note</option>
-          <option value="Sight Reading with Metronome">Sight Reading with Metronome</option>
-          <option value="Sight Reading without Metronome">Sight Reading without Metronome</option>
-        </select>
-      </div>
-
-      <div className="option-group">
-        <label>Complexity:</label>
-        <select value={complexity} onChange={(e) => setComplexity(e.target.value as RhythmComplexity)}>
-          <option value="Basic">Basic (Quarter only)</option>
-          <option value="Intermediate">Intermediate (+8th, Half)</option>
-          <option value="Advanced">Advanced (+Whole)</option>
-        </select>
-      </div>
-
-      <div className="option-group">
-        <label>Count-in:</label>
-        <select value={countInBars} onChange={(e) => setCountInBars(parseInt(e.target.value))}>
-          <option value={0}>None</option>
-          <option value={1}>1 Bar</option>
-          <option value={2}>2 Bars</option>
-          <option value={3}>3 Bars</option>
-          <option value={4}>4 Bars</option>
-        </select>
-      </div>
-
-      <Metronome 
-        bpm={bpm} 
-        onBpmChange={setBpm} 
-        isPlaying={isMetronomePlaying} 
-        onToggle={(playing) => {
-          // Nav guard: Only allow metronome/auto-play in Sight Reading modes
-          if (playing && playMode === 'Wait') {
-            alert("Automatic movement is only active in 'Sight Reading' modes.");
-            return;
-          }
-          setIsMetronomePlaying(playing);
-        }} 
-        countInBars={countInBars}
-        onCountInStart={() => setIsCountingIn(true)}
-        onCountInComplete={() => setIsCountingIn(false)}
-        silent={playMode === 'Sight Reading without Metronome'}
-      />
-
-      <div className="action-buttons" style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-        <button 
-          className="generate-btn" 
-          onClick={handleGenerate}
-          style={{ 
-            padding: '12px 24px', 
-            fontSize: '1.1rem', 
-            fontWeight: 'bold',
-            backgroundColor: '#3498db',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            flex: 1
-          }}
-        >
-          New Exercise
-        </button>
-        <button 
-          className={`start-btn ${isMetronomePlaying ? 'active' : ''}`}
-          onClick={() => {
-            if (playMode.startsWith('Sight Reading')) {
-              setIsMetronomePlaying(!isMetronomePlaying);
-            }
-          }}
-          style={{ 
-            padding: '12px 24px', 
-            fontSize: '1.1rem', 
-            fontWeight: 'bold',
-            backgroundColor: isMetronomePlaying ? '#e74c3c' : '#2ecc71',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            flex: 1,
-            display: playMode.startsWith('Sight Reading') ? 'block' : 'none'
-          }}
-        >
-          {isMetronomePlaying ? 'STOP' : 'START'}
-        </button>
-      </div>
-    </div>
-  );
-};
+    );
+  };
 
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Music Master Trainer</h1>
+        <h2>Music Trainer</h2>
         {renderHeader()}
       </header>
 
@@ -394,6 +471,7 @@ function App() {
                 isMoving={isMetronomePlaying && !isCountingIn}
                 onNotePlayed={handleNotePlayed}
                 onNoteReleased={handleNoteReleased}
+                activeNotes={activeNotes}
               />
               <div className="keyboard-preview">
                 <MidiKeyboard activeNotes={activeNotes} />

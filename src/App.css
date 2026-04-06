@@ -46,14 +46,28 @@
 
 .trainer-options {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
   gap: 20px;
   padding: 1.5rem;
   background-color: #262626;
   border-bottom: 1px solid #333;
   margin-bottom: 2rem;
+}
+
+.option-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 25px;
+  width: 100%;
+  padding: 5px 0;
+}
+
+.option-row:not(:last-child) {
+  border-bottom: 1px solid #333;
+  padding-bottom: 15px;
 }
 
 .option-group {

@@ -5,7 +5,6 @@ interface MetronomeProps {
   bpm: number;
   onBpmChange: (bpm: number) => void;
   isPlaying: boolean;
-  onToggle: (isPlaying: boolean) => void;
   countInBars?: number;
   onCountInStart?: () => void;
   onCountInComplete?: () => void;
@@ -16,7 +15,6 @@ const Metronome: React.FC<MetronomeProps> = ({
   bpm, 
   onBpmChange, 
   isPlaying, 
-  onToggle,
   countInBars = 0,
   onCountInStart,
   onCountInComplete,
@@ -149,9 +147,6 @@ const Metronome: React.FC<MetronomeProps> = ({
           onChange={(e) => onBpmChange(parseInt(e.target.value))} 
         />
         <span>{bpm} BPM</span>
-        <button onClick={() => onToggle(!isPlaying)}>
-          {isPlaying ? 'Stop' : 'Start'}
-        </button>
       </div>
     </div>
   );

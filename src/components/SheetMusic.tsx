@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { OpenSheetMusicDisplay, Note } from 'opensheetmusicdisplay';
 import * as Tone from 'tone';
 import { useMidi } from '../utils/useMidi';
+import { midiToNoteName } from '../utils/noteUtils';
 import type { PlayMode } from '../App';
 
 interface SheetMusicProps {
@@ -13,6 +14,7 @@ interface SheetMusicProps {
   onNotePlayed?: (note: number) => void;
   onNoteReleased?: (note: number) => void;
   title?: string;
+  activeNotes?: number[];
 }
 
 const SheetMusic: React.FC<SheetMusicProps> = ({ 
@@ -23,11 +25,25 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
   isMoving,
   onNotePlayed,
   onNoteReleased,
-  title
+  title,
+  activeNotes = []
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
+  const [expectedNotes, setExpectedNotes] = useState<string[]>([]);
   const midiStatus = 'MIDI Active';
+
+  const updateExpectedNotes = useCallback(() => {
+    const osmd = osmdRef.current;
+    if (!osmd || !osmd.cursor) return;
+    
+    const notesUnderCursor = osmd.cursor.NotesUnderCursor();
+    const names = notesUnderCursor.map(n => {
+      const pitch = (n.Pitch as unknown as { getHalfTone: () => number }).getHalfTone() + 12;
+      return midiToNoteName(pitch);
+    });
+    setExpectedNotes(names);
+  }, []);
 
   const highlightNote = (note: Note, color: string) => {
     const osmd = osmdRef.current;
@@ -78,9 +94,10 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
     if (matchFound && playMode === 'Wait') {
       setTimeout(() => {
         osmd.cursor.next();
+        updateExpectedNotes();
       }, 50);
     }
-  }, [playMode, onNotePlayed]);
+  }, [playMode, onNotePlayed, updateExpectedNotes]);
 
   // Use the global MIDI hook
   useMidi(checkNoteMatch, onNoteReleased);
@@ -89,13 +106,14 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
   useEffect(() => {
     let loop: Tone.Loop | null = null;
 
-    if (playMode === 'Sight Reading with Metronome' && isMoving && osmdRef.current) {
+    if (playMode === 'Sight Read with Metronome' && isMoving && osmdRef.current) {
       osmdRef.current.cursor.show();
       
       loop = new Tone.Loop((time) => {
         Tone.Draw.schedule(() => {
           if (osmdRef.current && osmdRef.current.cursor) {
             osmdRef.current.cursor.next();
+            updateExpectedNotes();
           }
         }, time);
       }, "4n");
@@ -108,7 +126,7 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
         loop.dispose();
       }
     };
-  }, [playMode, isMoving, bpm]);
+  }, [playMode, isMoving, bpm, updateExpectedNotes]);
 
   // Initialization & Score Loading
   useEffect(() => {
@@ -130,13 +148,19 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
           osmdRef.current.render();
           osmdRef.current.cursor.show();
           osmdRef.current.cursor.reset();
+          updateExpectedNotes();
         } catch (error) {
           console.error("Error loading MusicXML:", error);
         }
       }
     };
     loadScore();
-  }, [score, zoom]);
+  }, [score, zoom, updateExpectedNotes]);
+
+  const playedNoteNames = activeNotes.map(midiToNoteName);
+  const isCorrect = activeNotes.length > 0 && activeNotes.some(note => 
+    expectedNotes.includes(midiToNoteName(note))
+  );
 
   return (
     <div>
@@ -146,6 +170,37 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
           Status: {midiStatus} | Mode: {playMode}
         </div>
       </div>
+
+      <div className="note-comparison" style={{ 
+        padding: '10px 15px', 
+        background: '#f8f9fa', 
+        borderRadius: '8px', 
+        marginBottom: '10px',
+        display: 'flex',
+        gap: '30px',
+        alignItems: 'center',
+        borderLeft: '5px solid #3498db',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ color: '#7f8c8d', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Expected Note</span>
+          <span style={{ color: '#2c3e50', fontSize: '1.2rem', fontWeight: 'bold' }}>
+            {expectedNotes.length > 0 ? expectedNotes.join(', ') : '-'}
+          </span>
+        </div>
+        <div style={{ width: '1px', height: '30px', background: '#ddd' }} />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ color: '#7f8c8d', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Your Note</span>
+          <span style={{ 
+            color: activeNotes.length > 0 ? (isCorrect ? '#27ae60' : '#e74c3c') : '#bdc3c7',
+            fontSize: '1.2rem',
+            fontWeight: 'bold'
+          }}>
+            {playedNoteNames.length > 0 ? playedNoteNames.join(', ') : 'Play now...'}
+          </span>
+        </div>
+      </div>
+
       <div ref={containerRef} style={{ width: '100%', overflow: 'auto', background: 'white' }} />
     </div>
   );

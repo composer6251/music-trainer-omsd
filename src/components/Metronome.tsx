@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as Tone from 'tone';
 import type { TimeSignature } from '../utils/musicXmlGenerator';
+import type { Subdivision, BeatLabel } from '../types/theory';
 
 interface MetronomeProps {
   bpm: number;
@@ -10,15 +11,8 @@ interface MetronomeProps {
   countInBars?: number;
   onCountInStart?: () => void;
   onCountInComplete?: () => void;
+  onBeatUpdate?: (activeSubBeat: number, labels: BeatLabel[]) => void;
   silent?: boolean;
-}
-
-type Subdivision = '1/4' | '1/8' | '1/8 triplet' | '1/16';
-
-interface BeatLabel {
-  text: string;
-  isNumeral: boolean;
-  subIndex: number; // 0 for numerals, 1+ for subdivisions
 }
 
 const Metronome: React.FC<MetronomeProps> = ({ 
@@ -29,6 +23,7 @@ const Metronome: React.FC<MetronomeProps> = ({
   countInBars = 0,
   onCountInStart,
   onCountInComplete,
+  onBeatUpdate,
   silent = false
 }) => {
   const [visualSubdivision, setVisualSubdivision] = useState<Subdivision>('1/4');
@@ -38,6 +33,15 @@ const Metronome: React.FC<MetronomeProps> = ({
   
   const [isCountingInInternal, setIsCountingInInternal] = useState(false);
   const [beatsLeft, setBeatsLeft] = useState(0);
+
+  // Refs for callbacks to avoid loop restarts
+  const onCountInStartRef = React.useRef(onCountInStart);
+  const onCountInCompleteRef = React.useRef(onCountInComplete);
+  const onBeatUpdateRef = React.useRef(onBeatUpdate);
+
+  useEffect(() => { onCountInStartRef.current = onCountInStart; }, [onCountInStart]);
+  useEffect(() => { onCountInCompleteRef.current = onCountInComplete; }, [onCountInComplete]);
+  useEffect(() => { onBeatUpdateRef.current = onBeatUpdate; }, [onBeatUpdate]);
 
   // Parse time signature
   const [numerator, denominator] = useMemo(() => 
@@ -64,6 +68,11 @@ const Metronome: React.FC<MetronomeProps> = ({
     }
     return list;
   }, [numerator, visualSubdivision]);
+
+  // Sync state with parent when beat or labels change
+  useEffect(() => {
+    onBeatUpdate?.(activeSubBeat, labels);
+  }, [activeSubBeat, labels, onBeatUpdate]);
 
   // Refined synth for a "woodblock" or "click" sound
   const clickSynth = useMemo(() => new Tone.Synth({
@@ -121,10 +130,10 @@ const Metronome: React.FC<MetronomeProps> = ({
         if (totalCountInTicks > 0) {
           setIsCountingInInternal(true);
           setBeatsLeft(countInBars * numerator);
-          onCountInStart?.();
+          onCountInStartRef.current?.();
         } else {
           setIsCountingInInternal(false);
-          onCountInComplete?.();
+          onCountInCompleteRef.current?.();
         }
       }, Tone.now());
 
@@ -149,19 +158,16 @@ const Metronome: React.FC<MetronomeProps> = ({
           } else if (ticksPlayed === totalCountInTicks) {
             setIsCountingInInternal(false);
             setBeatsLeft(0);
-            onCountInComplete?.();
+            onCountInCompleteRef.current?.();
           }
         }, time);
 
         // Play click sound if not silent
         if (!silent) {
-          const isDownbeat = (ticksPlayed % (numerator * clickTicksPerBeat)) === 0;
           const isBeat = (ticksPlayed % clickTicksPerBeat) === 0;
           
-          if (isDownbeat) {
-            clickSynth.triggerAttackRelease("C6", "32n", time);
-            noiseSynth.triggerAttack(time);
-          } else if (isBeat) {
+          if (isBeat) {
+            // Consistent tone for all main beats (1, 2, 3, 4...)
             clickSynth.triggerAttackRelease("C5", "32n", time);
             noiseSynth.triggerAttack(time);
           } else {
@@ -181,42 +187,17 @@ const Metronome: React.FC<MetronomeProps> = ({
         setActiveSubBeat(0);
         setIsCountingInInternal(false);
         setBeatsLeft(0);
-        onCountInComplete?.();
+        onCountInCompleteRef.current?.();
       }, Tone.now());
     }
 
     return () => {
       if (loop) loop.dispose();
     };
-  }, [isPlaying, clickSynth, noiseSynth, countInBars, onCountInStart, onCountInComplete, silent, visualSubdivision, clickSubdivision, numerator]);
+  }, [isPlaying, clickSynth, noiseSynth, countInBars, silent, visualSubdivision, clickSubdivision, numerator]);
 
   return (
     <div className="metronome" style={{ border: 'none', padding: '0 10px' }}>
-      <div className="metronome-visual" style={{ 
-        display: 'flex', 
-        alignItems: 'baseline', 
-        gap: '8px', 
-        height: '40px',
-        marginBottom: '5px',
-        fontFamily: 'monospace'
-      }}>
-        {labels.map((label, i) => (
-          <span 
-            key={i} 
-            style={{ 
-              fontSize: label.isNumeral ? '1.8rem' : '0.9rem',
-              fontWeight: 'bold',
-              color: activeSubBeat === i && isPlaying ? '#2ecc71' : '#444',
-              transition: 'color 0.05s',
-              textShadow: activeSubBeat === i && isPlaying ? '0 0 10px #2ecc71' : 'none',
-              lineHeight: 1
-            }}
-          >
-            {label.text}
-          </span>
-        ))}
-      </div>
-      
       <div className="metronome-settings" style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <input 

@@ -1,3 +1,11 @@
+export type Subdivision = '1/4' | '1/8' | '1/8 triplet' | '1/16';
+
+export interface BeatLabel {
+  text: string;
+  isNumeral: boolean;
+  subIndex: number; // 0 for numerals, 1+ for subdivisions
+}
+
 export interface TheoryStep {
   id: string;
   title: string;

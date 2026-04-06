@@ -8,6 +8,7 @@ import AudioInput from './components/AudioInput'
 import { generateMusicXml, isNoteInScale } from './utils/musicXmlGenerator'
 import type { Scale, StaffType, RhythmComplexity, TimeSignature } from './utils/musicXmlGenerator'
 import { BEGINNER_MODULES } from './data/lessons'
+import type { BeatLabel } from './types/theory'
 import { useMidi } from './utils/useMidi'
 import { midiToNoteName } from './utils/noteUtils'
 import * as Tone from 'tone'
@@ -51,6 +52,8 @@ function App() {
   const [countInBars, setCountInBars] = useState(1);
   const [isCountingIn, setIsCountingIn] = useState(false);
   const [activeNotes, setActiveNotes] = useState<number[]>([]);
+  const [activeSubBeat, setActiveSubBeat] = useState(0);
+  const [metronomeLabels, setMetronomeLabels] = useState<BeatLabel[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [exerciseSource, setExerciseSource] = useState<ExerciseSource>('Custom File');
   const [customFileName, setCustomFileName] = useState<string>('sample.musicxml');
@@ -150,6 +153,13 @@ function App() {
     }
     setIsMetronomePlaying(false); // Stop metronome on new exercise
   }, [exerciseSource]);
+
+  const handleCountInStart = useCallback(() => setIsCountingIn(true), []);
+  const handleCountInComplete = useCallback(() => setIsCountingIn(false), []);
+  const handleBeatUpdate = useCallback((beat: number, labels: BeatLabel[]) => {
+    setActiveSubBeat(beat);
+    setMetronomeLabels(labels);
+  }, []);
 
   useEffect(() => {
     if (exerciseSource === 'Custom File' && !customScore && customFileName === 'sample.musicxml') {
@@ -351,8 +361,9 @@ function App() {
               isPlaying={isMetronomePlaying} 
               timeSignature={timeSignature}
               countInBars={countInBars}
-              onCountInStart={() => setIsCountingIn(true)}
-              onCountInComplete={() => setIsCountingIn(false)}
+              onCountInStart={handleCountInStart}
+              onCountInComplete={handleCountInComplete}
+              onBeatUpdate={handleBeatUpdate}
               silent={playMode === 'Sight Read without Metronome'}
             />
           </div>
@@ -485,6 +496,9 @@ function App() {
                 onNotePlayed={handleNotePlayed}
                 onNoteReleased={handleNoteReleased}
                 activeNotes={activeNotes}
+                activeSubBeat={activeSubBeat}
+                metronomeLabels={metronomeLabels}
+                isMetronomePlaying={isMetronomePlaying}
               />
               <div className="keyboard-preview">
                 <MidiKeyboard activeNotes={activeNotes} />

@@ -4,6 +4,7 @@ import * as Tone from 'tone';
 import { useMidi } from '../utils/useMidi';
 import { midiToNoteName } from '../utils/noteUtils';
 import type { PlayMode } from '../App';
+import type { BeatLabel } from '../types/theory';
 
 interface SheetMusicProps {
   score: string;
@@ -15,6 +16,9 @@ interface SheetMusicProps {
   onNoteReleased?: (note: number) => void;
   title?: string;
   activeNotes?: number[];
+  activeSubBeat?: number;
+  metronomeLabels?: BeatLabel[];
+  isMetronomePlaying?: boolean;
 }
 
 const SheetMusic: React.FC<SheetMusicProps> = ({ 
@@ -26,7 +30,10 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
   onNotePlayed,
   onNoteReleased,
   title,
-  activeNotes = []
+  activeNotes = [],
+  activeSubBeat = 0,
+  metronomeLabels = [],
+  isMetronomePlaying = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdRef = useRef<OpenSheetMusicDisplay | null>(null);
@@ -199,6 +206,29 @@ const SheetMusic: React.FC<SheetMusicProps> = ({
             {playedNoteNames.length > 0 ? playedNoteNames.join(', ') : 'Play now...'}
           </span>
         </div>
+
+        {metronomeLabels.length > 0 && (
+          <>
+            <div style={{ width: '1px', height: '30px', background: '#ddd' }} />
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', fontFamily: 'monospace' }}>
+              {metronomeLabels.map((label, i) => (
+                <span 
+                  key={i} 
+                  style={{ 
+                    fontSize: label.isNumeral ? '1.8rem' : '0.9rem',
+                    fontWeight: 'bold',
+                    color: activeSubBeat === i && isMetronomePlaying ? '#2ecc71' : '#444',
+                    transition: 'color 0.05s',
+                    textShadow: activeSubBeat === i && isMetronomePlaying ? '0 0 10px #2ecc71' : 'none',
+                    lineHeight: 1
+                  }}
+                >
+                  {label.text}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div ref={containerRef} style={{ width: '100%', overflow: 'auto', background: 'white' }} />

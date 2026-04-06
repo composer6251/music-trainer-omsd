@@ -6,10 +6,10 @@ import TheoryTrainer from './components/TheoryTrainer'
 import MidiKeyboard from './components/MidiKeyboard'
 import AudioInput from './components/AudioInput'
 import { generateMusicXml, isNoteInScale } from './utils/musicXmlGenerator'
+import type { Scale, StaffType, RhythmComplexity, TimeSignature } from './utils/musicXmlGenerator'
 import { BEGINNER_MODULES } from './data/lessons'
 import { useMidi } from './utils/useMidi'
 import { midiToNoteName } from './utils/noteUtils'
-import type { Scale, StaffType, RhythmComplexity } from './utils/musicXmlGenerator'
 import * as Tone from 'tone'
 
 type Page = 'Music Reading' | 'Learn Theory - Beginner' | 'Learn Theory - Advanced' | 'Composition';
@@ -39,6 +39,7 @@ function App() {
   const [voices, setVoices] = useState(1);
   const [measures, setMeasures] = useState(8);
   const [complexity, setComplexity] = useState<RhythmComplexity>('Basic');
+  const [timeSignature, setTimeSignature] = useState<TimeSignature>('4/4');
   const [lowNote, setLowNote] = useState(60); // Default C4
   const [highNote, setHighNote] = useState(72); // Default C5
   
@@ -60,8 +61,8 @@ function App() {
     if (exerciseSource !== 'Generator') return '';
     // Use void to reference generationKey to satisfy useMemo dependency rules
     void generationKey;
-    return generateMusicXml(measures, scale, staff, voices, complexity, lowNote, highNote);
-  }, [measures, scale, staff, voices, complexity, lowNote, highNote, generationKey, exerciseSource]);
+    return generateMusicXml(measures, scale, staff, voices, complexity, lowNote, highNote, timeSignature);
+  }, [measures, scale, staff, voices, complexity, lowNote, highNote, generationKey, exerciseSource, timeSignature]);
 
   const score = exerciseSource === 'Generator' ? generatedScore : customScore;
 
@@ -318,6 +319,19 @@ function App() {
 
         {/* Group 2: Complexity, Metronome, Count-In */}
         <div className="option-row">
+          <div className="option-group">
+            <label>Time Signature:</label>
+            <select value={timeSignature} onChange={(e) => setTimeSignature(e.target.value as TimeSignature)}>
+              <option value="2/4">2/4</option>
+              <option value="3/4">3/4</option>
+              <option value="4/4">4/4</option>
+              <option value="3/8">3/8</option>
+              <option value="6/8">6/8</option>
+              <option value="9/8">9/8</option>
+              <option value="12/8">12/8</option>
+            </select>
+          </div>
+
           {exerciseSource === 'Generator' && (
             <div className="option-group">
               <label>Complexity:</label>
@@ -335,6 +349,7 @@ function App() {
               bpm={bpm} 
               onBpmChange={setBpm} 
               isPlaying={isMetronomePlaying} 
+              timeSignature={timeSignature}
               countInBars={countInBars}
               onCountInStart={() => setIsCountingIn(true)}
               onCountInComplete={() => setIsCountingIn(false)}
@@ -388,8 +403,8 @@ function App() {
             <label>Mode:</label>
             <select value={playMode} onChange={(e) => setPlayMode(e.target.value as PlayMode)}>
               <option value="Wait">Wait for Note</option>
-              <option value="Sight Read with Metronome">Sight Reading with Metronome</option>
-              <option value="Sight Read without Metronome">Sight Reading without Metronome</option>
+              <option value="Sight Read with Metronome">Sight Read with Metronome</option>
+              <option value="Sight Read without Metronome">Sight Read without Metronome</option>
             </select>
           </div>
 
@@ -415,9 +430,7 @@ function App() {
             <button 
               className={`start-btn ${isMetronomePlaying ? 'active' : ''}`}
               onClick={() => {
-                if (playMode.startsWith('Sight Read')) {
-                  setIsMetronomePlaying(!isMetronomePlaying);
-                }
+                setIsMetronomePlaying(!isMetronomePlaying);
               }}
               style={{ 
                 padding: '10px 20px', 
@@ -428,7 +441,7 @@ function App() {
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
-                display: playMode.startsWith('Sight Read') ? 'block' : 'none'
+                minWidth: '100px'
               }}
             >
               {isMetronomePlaying ? 'STOP' : 'START'}

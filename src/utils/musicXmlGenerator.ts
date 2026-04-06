@@ -1,6 +1,7 @@
 export type StaffType = 'Treble' | 'Bass' | 'Alto' | 'Treble8va' | 'Grand';
 export type Scale = 'C Major' | 'G Major' | 'F Major' | 'D Major' | 'Bb Major' | 'A Minor' | 'E Minor';
 export type RhythmComplexity = 'Basic' | 'Intermediate' | 'Advanced';
+export type TimeSignature = '2/4' | '3/4' | '4/4' | '3/8' | '6/8' | '9/8' | '12/8';
 
 interface ScaleConfig {
   fifths: number;
@@ -73,12 +74,20 @@ export const generateMusicXml = (
   voices: number = 1,
   complexity: RhythmComplexity = 'Basic',
   lowNote: number = 60,
-  highNote: number = 72
+  highNote: number = 72,
+  timeSignature: TimeSignature = '4/4'
 ): string => {
   const config = SCALE_MAP[scale];
   const availableRhythms = getRhythms(complexity);
+  
+  const [beats, beatType] = timeSignature.split('/').map(Number);
   const divisions = 2; // 1 duration unit = 8th note
-  const beatsPerMeasure = 8; // 4/4 time * 2 divisions
+  
+  // In MusicXML, duration is measured in 'divisions'. 
+  // If divisions = 2, a quarter note (1/4) is 2 units, eighth (1/8) is 1 unit.
+  // For X/4, measure has 'beats' * 2 units.
+  // For X/8, measure has 'beats' * 1 units.
+  const beatsPerMeasure = beatType === 4 ? beats * 2 : beats;
 
   let scoreContent = '';
 
@@ -91,7 +100,10 @@ export const generateMusicXml = (
         <attributes>
           <divisions>${divisions}</divisions>
           <key><fifths>${config.fifths}</fifths></key>
-          <time><beats>4</beats><beat-type>4</beat-type></time>
+          <time>
+            <beats>${beats}</beats>
+            <beat-type>${beatType}</beat-type>
+          </time>
           ${staff === 'Grand' ? '<staves>2</staves>' : ''}
           ${getClef(staff)}
         </attributes>`;

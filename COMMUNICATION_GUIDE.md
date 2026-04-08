@@ -1,3 +1,5 @@
+# To resume this session: gemini --resume 646aeae2-f1d7-4f77-aef4-f2484bc0d6e3     
+
 # Bridging the Human-AI Communication Gap
 
 This guide outlines strategies for maximizing the effectiveness of your interactions with Gemini CLI, focusing on the common pitfalls of natural language and how to avoid them.
